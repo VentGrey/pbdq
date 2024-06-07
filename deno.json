@@ -1,0 +1,53 @@
+{
+    "name": "@ventgrey/pbdq",
+    "version": "0.1.0",
+    "exports": "./lib/mod.ts",
+    "publish": {
+        "include": [
+            "deno.json",
+            "lib",
+            "README.md"
+        ]
+    },
+    "compilerOptions": {
+        "allowJs": false,
+        "strict": true
+    },
+    "fmt": {
+        "useTabs": false,
+        "lineWidth": 80,
+        "indentWidth": 4,
+        "semiColons": true,
+        "singleQuote": false,
+        "proseWrap": "always"
+    },
+    "lint": {
+        "include": [
+            "lib/**/*.ts",
+            "tests/**/*.ts"
+        ],
+        "rules": {
+            "tags": ["recommended"],
+            "include": [
+                "ban-untagged-todo",
+                "eqeqeq",
+                "explicit-function-return-type",
+                "no-console",
+                "prefer-ascii",
+                "no-slow-types"
+            ]
+        }
+    },
+    "imports": {
+        "pocketbase": "npm:pocketbase@^0.21.3"
+    },
+    "tasks": {
+        "lint-docs": "deno doc --html --lint --name=pbdq --output=./docs ./lib/mod.ts",
+        "docs": "deno doc --html --name=pbdq --output=./docs ./lib/mod.ts"
+    },
+    "test": {
+        "include": [
+            "tests/**/*.ts"
+        ]
+    }
+}
