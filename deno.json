@@ -5,6 +5,7 @@
     "publish": {
         "include": [
             "deno.json",
+            "lib",
             "mod.ts",
             "README.md"
         ]
