@@ -1,11 +1,11 @@
 {
     "name": "@ventgrey/pbdq",
     "version": "0.1.0",
-    "exports": "./lib/mod.ts",
+    "exports": "./mod.ts",
     "publish": {
         "include": [
             "deno.json",
-            "lib",
+            "mod.ts",
             "README.md"
         ]
     },
@@ -23,7 +23,7 @@
     },
     "lint": {
         "include": [
-            "lib/**/*.ts",
+            "**/*.ts",
             "tests/**/*.ts"
         ],
         "rules": {
@@ -39,11 +39,12 @@
         }
     },
     "imports": {
+        "$types": "./lib/types/mod.ts",
+        "@std/assert": "jsr:@std/assert@^0.226.0",
         "pocketbase": "npm:pocketbase@^0.21.3"
     },
     "tasks": {
-        "lint-docs": "deno doc --html --lint --name=pbdq --output=./docs ./lib/mod.ts",
-        "docs": "deno doc --html --name=pbdq --output=./docs ./lib/mod.ts"
+        "docs": "deno doc --html --name=pbdq --output=./docs ./mod.ts"
     },
     "test": {
         "include": [
