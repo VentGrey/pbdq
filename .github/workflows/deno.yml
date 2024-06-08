@@ -1,0 +1,39 @@
+name: Deno CI/CD JSR
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+
+permissions:
+  contents: read
+  id-token: write # The OIDC ID token is used for authentication with JSR.    
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup repo
+        uses: actions/checkout@v4
+
+      - name: Setup Deno Stable
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
+
+      - name: Verify formatting
+        run: deno fmt --check
+
+      - name: Run linter
+        run: deno lint
+
+      #- name: Run tests
+      #  run: deno test -A
+  publish:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npx jsr publish

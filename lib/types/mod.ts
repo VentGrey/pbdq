@@ -1,5 +1,4 @@
 import Client from "pocketbase";
-import Pbd from "../../mod.ts";
 
 /**
  * The options for the Pbd wrapper object. As of now, it only needs an already
@@ -17,6 +16,7 @@ export interface PbdOptions {
 export interface PbdQueryOptions {
     collectionName: string;
     options?: HeadersInit;
+    filter?: string;
 }
 
 export interface PbdOauthAuthOptions extends PbdQueryOptions {
@@ -50,6 +50,10 @@ export interface PbdConfirmEmailChangeOptions extends PbdQueryOptions {
     password: string;
 }
 
+export interface PbdUnlinkExternalAuthOptions extends PbdQueryOptions {
+    provider: string;
+}
+
 export interface PbdAuthPasswordOptions extends PbdQueryOptions {
     user_or_email: string;
     password: string;
@@ -58,4 +62,18 @@ export interface PbdAuthPasswordOptions extends PbdQueryOptions {
 export interface PbdGetListOptions extends PbdQueryOptions {
     page: number;
     perPage: number;
+}
+
+export interface PbdGetLogsOptions extends PbdQueryOptions {
+    page: number;
+    perPage: number;
+}
+
+export interface PbdCreateCollectionOptions extends PbdQueryOptions {
+    name: string;
+    schema: Record<string, unknown>;
+    type: "base" | "auth" | "view";
+    createRule?: string;
+    updateRule?: string;
+    deleteRule?: string;
 }

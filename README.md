@@ -36,6 +36,12 @@ _Special cases are not special enough to break the rules_.
 
 ## Limitations 🔒
 
+- No easy way to test or publish test results from pipelines. This is because
+  pbdq needs an already initialized pocketbase client. In other words, a
+  working, reachable PocketBase instance is needed. I haven't found a way to
+  either "mock" the client or how to expose a pocketbase instance for Actions to
+  use.
+
 - No support for realtime service. This is because I don't use that feature
   myself.
 

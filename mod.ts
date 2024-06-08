@@ -1,23 +1,33 @@
 import Client, {
-AuthMethodsList,
+    AuthMethodsList,
     ClientResponseError,
+    CollectionModel,
     ExternalAuthModel,
+    HealthCheckResponse,
+    HourlyStats,
     ListResult,
     RecordAuthResponse,
     RecordModel,
 } from "pocketbase";
+
+import BackupFileInfo from "pocketbase";
+import { LogModel } from "pocketbase";
+import appleClientSecret from "pocketbase";
 
 import {
     PbdAuthPasswordOptions,
     PbdConfirmEmailChangeOptions,
     PbdConfirmPasswordResetOptions,
     PbdConfirmVerificationOptions,
+    PbdCreateCollectionOptions,
     PbdGetListOptions,
+    PbdGetLogsOptions,
     PbdOauthAuthOptions,
     PbdOptions,
     PbdRequestEmailChangeOptions,
     PbdRequestPasswordResetOptions,
     PbdRequestVerificationOptions,
+    PbdUnlinkExternalAuthOptions,
 } from "$types";
 import { PbdQueryOptions } from "$types";
 
@@ -34,16 +44,77 @@ import { PbdQueryOptions } from "$types";
  * This uses some generic functions and tries to fill the missing bits and
  * pieces from the JS SDK for TypeScript.
  *
+ * > [!IMPORTANT]
+ * > While I myself use this wrapper in production, I don't really test much of
+ * > the features I don't use. If you find any bugs, please open an issue.
+ *
  * @example - CRUD operations on "Cats" from the PocketBase Collection "cats"
  * ```typescript
- * // Work in progress
+ * // Instantiate a new PocketBase client
+ * const pb: Client = new PocketBase("http://127.0.0.1:8090");
+ *
+ * // Instantiate the Pbd wrapper
+ * const pbd: Pbd = new Pbd({ client: pb });
+ *
+ * // Get a list of "cats"
+ * const cats: ListResult<Cat> = await pbd
+ *     .getList({ collectionName: "cats" });
+ *
+ * // Create a new "cat"
+ * const newCat: Cat = await pbd.create({ collectionName: "cats" }, {
+ *     name: "Erina",
+ *     age: 2,
+ *     color: "brown",
+ *     breed: "Domestic Short Hair",
+ * });
+ *
+ * // Get the new "cat"
+ * const cat: Cat = await pbd.get({ collectionName: "cats", id: newCat.id });
+ *
+ * // Update the new "cat"
+ * const updatedCat: Cat = await pbd.update({ collectionName: "cats", id: newCat.id }, {
+ *     name: "Erina Pendleton",
+ *     age: 2,
+ *     color: "brown",
+ *     breed: "Domestic Short Hair",
+ * });
+ *
+ * // Delete the new "cat"
+ * await pbd.delete({ collectionName: "cats", id: newCat.id });
  * ```
+ *
+ * @example - Setup a Deno Cron Job to check the health of the PocketBase every
+ * minute
+ * ```typescript
+ * Deno.cron("Check PocketBase Health", "* * * * *", async () => {
+ *   // Assuming you already have a Pbd instance
+ *   const result = await pbd.getHealth();
+ *
+ *   // Do something with the result
+ *   result.message ? console.log(result.message) : console.log("Api is not healthy");
+ * })
+ * ```
+ *
+ * @example - Control backups from a Deno Cron Job. The backup will be created
+ * at 00:00 every day
+ * ```typescript
+ * Deno.cron("Backup", "0 0 * * *", async () => {
+ *    // Assuming you already have a Pbd instance
+ *    const result = await pbd.createBackup(`${new Date().toISOString()}.zip`);
+ *
+ *    // Do something with the result
+ *    result ? console.log("Backup succeeded") : console.log("Backup failed");
+ * });
  *
  * @module
  */
 export class Pbd {
     /**
-     * The pocketbase client that is wrapped by the Pbd wrapper.
+     * The pocketbase {@link Client} that is wrapped by the Pbd wrapper.
+     * This is the client we are passing into the Pbd wrapper. The wrapper
+     * will change the client state to be authenticated, get or set records,
+     * interact with backups, etc.
+     *
      * @type {import("pocketbase").Client}
      */
     client: Client;
@@ -65,6 +136,7 @@ export class Pbd {
      *
      * @param options {PbdAuthPasswordOptions} - The options for thr
      * authWithPassword pocketbase sdk method.
+     * @throws {ClientResponseError} - If the request to pocketbase fails.
      * @returns {Promise<void>} - Nothing. It only changes the client state
      * to be authenticated.
      */
@@ -82,6 +154,13 @@ export class Pbd {
             );
     }
 
+    /**
+     * Authenticates the provided client with an OAuth2 provider.
+     *
+     * @param options {PbdOauthAuthOptions} - The options for the authWithOAuth2 method
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @returns {Promise<RecordAuthResponse<RecordModel>>} - The result of the authWithOAuth2
+     */
     async authWithOAuth2(
         options: PbdOauthAuthOptions,
     ): Promise<RecordAuthResponse<RecordModel>> {
@@ -99,6 +178,34 @@ export class Pbd {
             );
     }
 
+    /**
+     * Generates a file token for the provided client.
+     *
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @returns {Promise<string>} - The client's generated file token
+     */
+    async getFileToken(): Promise<string> {
+        return await this.client.files.getToken().then(
+            (res: string) => {
+                return res;
+            },
+        ).catch(
+            (err: ClientResponseError) => {
+                throw err;
+            },
+        );
+    }
+
+    /**
+     * Refreshes the provided client's auth token. I think this queries a
+     * certain encpoint in PocketBase. and depending on your authStore state
+     * it may return a new token if the current one is expired. Or it may
+     * do nothing because the current token is still valid.
+     *
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param options {PbdAuthPasswordOptions} - The options for the authRefresh method
+     * @returns {Promise<void>} - No result seems to be returned because mutation happens in pocketbase's side (?)
+     */
     async authRefresh(options: PbdAuthPasswordOptions): Promise<void> {
         await this.client.collection(options.collectionName).authRefresh().then(
             (res: RecordAuthResponse<RecordModel>) => {
@@ -111,6 +218,14 @@ export class Pbd {
         );
     }
 
+    /**
+     * Sends a verification request to the provided email using the
+     * configured email template/settings in PocketBase.
+     *
+     * @param options {PbdRequestVerificationOptions} - The options for the requestVerification method
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @returns {Promise<boolean>} - True if the email was sent
+     */
     async requestVerification(
         options: PbdRequestVerificationOptions,
     ): Promise<boolean> {
@@ -126,6 +241,13 @@ export class Pbd {
             );
     }
 
+    /**
+     * Confirms a verification request using the provided token.
+     *
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param options {PbdConfirmVerificationOptions} - The options for the confirmVerification method
+     * @returns {Promise<boolean>} - True if the email was sent
+     */
     async confirmVerification(
         options: PbdConfirmVerificationOptions,
     ): Promise<boolean> {
@@ -142,6 +264,14 @@ export class Pbd {
             );
     }
 
+    /**
+     * Sends a password reset request to the provided email using the
+     * configured email template/settings in PocketBase.
+     *
+     * @param options {PbdRequestPasswordResetOptions} - The options for the requestPasswordReset method
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @returns {Promise<boolean>} - True if the email was sent
+     */
     async requestPasswordReset(
         options: PbdRequestPasswordResetOptions,
     ): Promise<boolean> {
@@ -158,6 +288,14 @@ export class Pbd {
             );
     }
 
+    /**
+     * Confirms a password reset using the provided token. If the token
+     * is invalid, an error will be thrown.
+     *
+     * @param options {PbdConfirmPasswordResetOptions} - The options for the confirmPasswordReset method
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @returns {Promise<boolean>} - True if the email was sent
+     */
     async confirmPasswordReset(
         options: PbdConfirmPasswordResetOptions,
     ): Promise<boolean> {
@@ -177,6 +315,14 @@ export class Pbd {
             );
     }
 
+    /**
+     * Sends an email change request to the provided email using the
+     * configured email template/settings in PocketBase.
+     *
+     * @param options {PbdRequestEmailChangeOptions} - The options for the requestEmailChange method
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @returns {Promise<boolean>} - True if the email was sent
+     */
     async requestEmailChange(
         options: PbdRequestEmailChangeOptions,
     ): Promise<boolean> {
@@ -194,6 +340,14 @@ export class Pbd {
             );
     }
 
+    /**
+     * Confirms an email change using the provided token. If the token
+     * is invalid, an error will be thrown.
+     *
+     * @param options {PbdConfirmEmailChangeOptions} - The options for the confirmEmailChange method
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @returns {Promise<boolean>} - True if the email was sent
+     */
     async confirmEmailChange(
         options: PbdConfirmEmailChangeOptions,
     ): Promise<boolean> {
@@ -212,27 +366,79 @@ export class Pbd {
             );
     }
 
+    /**
+     * Lists all available auth methods for the provided collection.
+     *
+     * @param options {PbdQueryOptions} - The options for the listAuthMethods method
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @returns {Promise<AuthMethodsList>} - The list of auth methods
+     */
     async listAuthMethods(options: PbdQueryOptions): Promise<AuthMethodsList> {
-        return await this.client.collection(options.collectionName).listAuthMethods({
-            ...options.options
-        }).then(
-            (res: AuthMethodsList) => {
+        return await this.client.collection(options.collectionName)
+            .listAuthMethods({
+                ...options.options,
+            }).then(
+                (res: AuthMethodsList) => {
+                    return res;
+                },
+            ).catch(
+                (err: ClientResponseError) => {
+                    throw err;
+                },
+            );
+    }
+
+    /**
+     * Lists all available external auth methods for the provided collection.
+     *
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param options {PbdQueryOptions} - The options for the listExternalAuths method
+     * @returns {Promise<ExternalAuthModel[]>} - The list of external auth
+     */
+    async listExternalAuth(
+        options: PbdQueryOptions,
+    ): Promise<ExternalAuthModel[]> {
+        return await this.client.collection(options.collectionName)
+            .listExternalAuths(
+                this.client.authStore.model?.id,
+            ).then(
+                (res: ExternalAuthModel[]) => {
+                    return res;
+                },
+            ).catch(
+                (err: ClientResponseError) => {
+                    throw err;
+                },
+            );
+    }
+
+    /**
+     * Unlinks a single external OAuth2 provider from any `authModel` collection.
+     * Which means, any auth collection in the PocketBase. I do not recommend
+     * reusing this method if you have a second or third auth collections.
+     *
+     * As much as it sounds horrible memory waste, it's better for your
+     * reproducibility.
+     *
+     * @param options {PbdUnlinkExternalAuthOptions} - The options for the unlinkExternalAuth
+     * @returns {Promise<void>} - Mutates the client state to unlink the external auth.
+     */
+    async unlinkExternalAuth(
+        options: PbdUnlinkExternalAuthOptions,
+    ): Promise<void> {
+        await this.client.collection(options.collectionName).unlinkExternalAuth(
+            this.client.authStore.model?.id,
+            options.provider,
+        ).then(
+            (res: boolean) => {
                 return res;
-            }
+            },
         ).catch(
             (err: ClientResponseError) => {
                 throw err;
             },
-        )
-    }
-
-    async listExternalAuth(options: PbdQueryOptions): Promise<ExternalAuthModel[]> {
-        return await this.client.collection(options.collectionName).listExternalAuths(
-            this.client.authStore.model?.id
         );
     }
-
-
 
     /**
      * Wraps the getList method from the pocketbase client. It uses generics
@@ -292,6 +498,15 @@ export class Pbd {
         );
     }
 
+    /**
+     * Wraps the getFullList method from the pocketbase client. It uses generics
+     * to return the correct type when querying the collection. If you
+     * already have some type definitions, you can use them in the generics
+     * provided in this function.
+     *
+     * @param options {PbdQueryOptions} - The options for the getFullList pocketbase method
+     * @returns {Promise<T[]>} - The result of the getFullList pocketbase method
+     */
     async getFullList<T>(options: PbdQueryOptions): Promise<T[]> {
         return await this.client.collection(options.collectionName).getFullList<
             T
@@ -313,25 +528,690 @@ export class Pbd {
             },
         );
     }
+
+    /**
+     * Wraps the getFirstListItem method from the pocketbase client. It uses generics
+     * to return the correct type when querying the collection. If you
+     * already have some type definitions, you can use them in the generics
+     * provided in this function.
+     *
+     * @param options {PbdQueryOptions} - The options for the getFirstListItem
+     * @returns {Promise<T>} - The result of the getFirstListItem
+     */
+    async getFirstListItem<T>(options: PbdQueryOptions): Promise<T> {
+        return await this.client.collection(options.collectionName)
+            .getFirstListItem<T>(options.filter?.toString() as string, {
+                ...options.options,
+            }).then(
+                (res: T) => {
+                    return res;
+                },
+            ).catch(
+                (err: ClientResponseError) => {
+                    throw err;
+                },
+            );
+    }
+
+    /**
+     * Wraps the getOne method from the pocketbase client. It uses generics
+     * to return the correct type when querying the collection. If you
+     * already have some type definitions, you can use them in the generics
+     * provided in this function.
+     *
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param record_id {string} - The id of the record
+     * @param options {PbdQueryOptions} - The options for the getOne
+     * @returns {Promise<T>} - The result of the getOne
+     */
+    async getOne<T>(record_id: string, options: PbdQueryOptions): Promise<T> {
+        return await this.client.collection(options.collectionName).getOne<T>(
+            record_id,
+            {
+                ...options.options,
+            },
+        ).then(
+            (res: T) => {
+                return res;
+            },
+        ).catch(
+            (err: ClientResponseError) => {
+                throw err;
+            },
+        );
+    }
+
+    /**
+     * Wraps the create method from the pocketbase client. It uses generics
+     * to return the correct type when querying the collection. If you
+     * already have some type definitions, you can use them in the generics
+     * provided in this function.
+     *
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param options {PbdQueryOptions} - The options for the create
+     * @param data {T} - The data to create
+     * @returns {Promise<T>} - The result of the create
+     */
+    async create<T>(
+        options: PbdQueryOptions,
+        data: { [key: string]: T } | FormData | undefined,
+    ): Promise<T> {
+        return await this.client.collection(options.collectionName).create<T>(
+            data,
+            {
+                ...options.options,
+            },
+        ).then(
+            (res: T) => {
+                return res;
+            },
+        ).catch(
+            (err: ClientResponseError) => {
+                throw err;
+            },
+        );
+    }
+
+    /**
+     * Wraps the update method from the pocketbase client. It uses generics
+     * to return the correct type when querying the collection. If you
+     * already have some type definitions, you can use them in the generics
+     * provided in this function.
+     *
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param record_id {string} - The id of the record
+     * @param options {PbdQueryOptions} - The options for the update
+     * @param data {T} - The data to update
+     * @returns {Promise<T>} - The result of the update
+     */
+    async update<T>(
+        record_id: string,
+        options: PbdQueryOptions,
+        data: { [key: string]: T } | FormData | undefined,
+    ): Promise<T> {
+        return await this.client.collection(options.collectionName).update<T>(
+            record_id,
+            data,
+            {
+                ...options.options,
+            },
+        ).then(
+            (res: T) => {
+                return res;
+            },
+        ).catch(
+            (err: ClientResponseError) => {
+                throw err;
+            },
+        );
+    }
+
+    /**
+     * Wraps the delete method from the pocketbase client. It uses generics
+     * to return the correct type when querying the collection. If you
+     * already have some type definitions, you can use them in the generics
+     * provided in this function.
+     *
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param record_id {string} - The id of the record
+     * @param options {PbdQueryOptions} - The options for the delete
+     * @returns {Promise<void>} - The result of the delete
+     */
+    async delete(record_id: string, options: PbdQueryOptions): Promise<void> {
+        return await this.client.collection(options.collectionName).delete(
+            record_id,
+            {
+                ...options.options,
+            },
+        ).then(
+            () => {
+                return;
+            },
+        ).catch(
+            (err: ClientResponseError) => {
+                throw err;
+            },
+        );
+    }
+
+    /**
+     * Wraps the fileGetUrl method from the pocketbase client. It uses generics
+     * to return the correct type when querying the collection. If you
+     * already have some type definitions, you can use them in the generics
+     * provided in this function.
+     *
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param options {PbdQueryOptions} - The options for the fileGetUrl
+     * @param filename {string} - The name of the file
+     * @param record_id {string} - The id of the record
+     * @returns {string} - The result of the fileGetUrl
+     */
+    fileGetUrl<T>(
+        options: PbdQueryOptions,
+        filename: string,
+        record_id: string,
+    ): string {
+        return this.client.files.getUrl(
+            this.client.collection(options.collectionName).getOne<T>(record_id),
+            filename,
+            {
+                ...options.options,
+            },
+        );
+    }
+
+    /**
+     * Wraps the getToken method from the pocketbase client.
+     *
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @returns {Promise<string>} - The result of the getToken
+     */
+    async getToken(): Promise<string> {
+        return await this.client.files.getToken().then(
+            (res: string) => {
+                return res;
+            },
+        ).catch(
+            (err: ClientResponseError) => {
+                throw err;
+            },
+        );
+    }
+
+    /**
+     * Wraps the getHealth method from the pocketbase client.
+     *
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @returns {Promise<HealthCheckResponse>} - The result of the getHealth
+     */
+    async getHealth(): Promise<HealthCheckResponse> {
+        return await this.client.health.check().then(
+            (res: HealthCheckResponse) => {
+                return res;
+            },
+        ).catch(
+            (err: ClientResponseError) => {
+                throw err;
+            },
+        );
+    }
+
+    /**
+     * Wraps the listBackups method from the pocketbase client.
+     *
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param options {PbdQueryOptions} - The options for the listBackups
+     * @returns {Promise<BackupFileInfo[]>} - The result of the listBackups
+     */
+    async listBackups(options: PbdQueryOptions): Promise<BackupFileInfo[]> {
+        return await this.client.backups.getFullList({
+            ...options.options,
+        }).then(
+            (res: unknown | BackupFileInfo[]) => {
+                if (!Array.isArray(res)) {
+                    throw new Error(
+                        `No backups found in collection ${options.collectionName}`,
+                    );
+                }
+                return res;
+            },
+        ).catch(
+            (err: ClientResponseError) => {
+                throw err;
+            },
+        );
+    }
+
+    async createBackup(backup_name: string): Promise<boolean> {
+        return await this.client.backups.create(backup_name).then(
+            (res: boolean) => {
+                return res;
+            },
+        ).catch(
+            (err: ClientResponseError) => {
+                throw err;
+            },
+        );
+    }
+
+    async uploadBackup(blob: Blob): Promise<boolean> {
+        return await this.client.backups.upload(
+            {
+                file: blob,
+            },
+        ).then(
+            (res: boolean) => {
+                return res;
+            },
+        ).catch(
+            (err: ClientResponseError) => {
+                throw err;
+            },
+        );
+    }
+
+    async deleteBackup(backup_name: string): Promise<boolean> {
+        return await this.client.backups.delete(backup_name).then(
+            (res: boolean) => {
+                return res;
+            },
+        ).catch(
+            (err: ClientResponseError) => {
+                throw err;
+            },
+        );
+    }
+
+    /**
+     * Restore a backup from the PocketBase.
+     *
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param backup_name {string}- The name of the backup
+     * @returns {Promise<boolean>}
+     */
+    async restoreBackup(backup_name: string): Promise<boolean> {
+        return await this.client.backups.restore(backup_name).then(
+            (res: boolean) => {
+                return res;
+            },
+        ).catch(
+            (err: ClientResponseError) => {
+                throw err;
+            },
+        );
+    }
+
+    /**
+     * Get the download url of a backup file from the PocketBase.
+     *
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param backup_name {string}- The name of the backup
+     * @param token {string}- The token
+     * @returns {string}- The download url
+     */
+    downloadBackup(backup_name: string, token: string): string {
+        return this.client.backups.getDownloadUrl(token, backup_name);
+    }
+
+    /**
+     * Get a list of logs from the PocketBase.
+     *
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param options {PbdGetLogsOptions} - The options for the getLogList method
+     * @returns {Promise<ListResult<LogModel>>} - The list of logs
+     */
+    async getLogList(
+        options: PbdGetLogsOptions,
+    ): Promise<ListResult<LogModel>> {
+        return await this.client.logs.getList(options.page, options.perPage, {
+            filter: options.filter,
+        }).then(
+            (res: ListResult<LogModel>) => {
+                return res;
+            },
+        ).catch(
+            (err: ClientResponseError) => {
+                throw err;
+            },
+        );
+    }
+
+    /**
+     * Get a single log entry from the PocketBase.
+     *
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param log_id {string} - The id of the log
+     * @returns {Promise<LogModel>} - The log
+     */
+    async getOneLog(log_id: string): Promise<LogModel> {
+        return await this.client.logs.getOne(log_id).then(
+            (res: LogModel) => {
+                return res;
+            },
+        ).catch(
+            (err: ClientResponseError) => {
+                throw err;
+            },
+        );
+    }
+
+    /**
+     * Get all the stats from the PocketBase.
+     *
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param filter {string} - The filter to use
+     * @returns {Promise<HourlyStats[]>} - The stats
+     */
+    async getLogStats(filter: string): Promise<HourlyStats[]> {
+        return await this.client.logs.getStats({
+            filter: filter,
+        }).then(
+            (res: HourlyStats[]) => {
+                return res;
+            },
+        ).catch(
+            (err: ClientResponseError) => {
+                throw err;
+            },
+        );
+    }
+
+    /**
+     * Get all the settings from the PocketBase.
+     *
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @returns {Promise<{[key: string]: unknown}>} - The settings
+     */
+    async getAllSettings(): Promise<{ [key: string]: unknown }> {
+        return await this.client.settings.getAll().then(
+            (res: { [key: string]: unknown }) => {
+                return res;
+            },
+        ).catch(
+            (err: ClientResponseError) => {
+                throw err;
+            },
+        );
+    }
+
+    /**
+     * Update the settings. It requires a pocketbase settings object.
+     *
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param settings {[key: string]: unknown} - The settings to update
+     * @returns {Promise<{[key: string]: unknown}>} - The updated settings
+     */
+    async updateSettings(
+        settings: { [key: string]: unknown },
+    ): Promise<{ [key: string]: unknown }> {
+        return await this.client.settings.update(settings).then(
+            (res: { [key: string]: unknown }) => {
+                return res;
+            },
+        ).catch(
+            (err: ClientResponseError) => {
+                throw err;
+            },
+        );
+    }
+
+    /**
+     * Test the configured S3 settings
+     *
+     * @param backups {("storage" | "backups")} - The backups to test
+     * @returns {Promise<boolean>} - True if the backups are working
+     */
+    async testS3(backups: "storage" | "backups"): Promise<boolean> {
+        return await this.client.settings.testS3(backups).then(
+            (res: boolean) => {
+                return res;
+            },
+        ).catch(
+            (err: ClientResponseError) => {
+                throw err;
+            },
+        );
+    }
+
+    /**
+     * Sends a test email via PocketBase with configured SMTP settings.
+     *
+     * @param email {string} - The email of the user
+     * @param template {string} - The template to use
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @returns {Promise<boolean>} - True if the email was sent
+     */
+    async testEmail(email: string, template: string): Promise<boolean> {
+        return await this.client.settings.testEmail(email, template).then(
+            (res: boolean) => {
+                return res;
+            },
+        ).catch(
+            (err: ClientResponseError) => {
+                throw err;
+            },
+        );
+    }
+
+    /**
+     * Generate Apple client secret for the current user
+     *
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param options {
+     *  client_id: string;
+     *  team_id: string;
+     *  key_id: string;
+     *  private_key: string;
+     *  duration: number;
+     * } - Apple client secret
+     * @returns
+     */
+    async generateAppleClientSecret(options: {
+        client_id: string;
+        team_id: string;
+        key_id: string;
+        private_key: string;
+        duration: number;
+    }): Promise<appleClientSecret> {
+        return await this.client.settings.generateAppleClientSecret(
+            options.client_id,
+            options.team_id,
+            options.key_id,
+            options.private_key,
+            options.duration,
+        ).then(
+            (res: appleClientSecret | unknown) => {
+                if (res instanceof appleClientSecret) {
+                    return res as appleClientSecret;
+                } else {
+                    return res as unknown as appleClientSecret;
+                }
+            },
+        ).catch(
+            (err: ClientResponseError) => {
+                throw err;
+            },
+        );
+    }
+
+    /**
+     * Get a paginated list of the current collections from the PocketBase.
+     *
+     * @async
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param options {PbdGetListOptions} - The options for the getFullCollectionsList
+     * @returns {Promise<ListResult<CollectionModel>>} - The list of collections
+     */
+    async getCollectionList(
+        options: PbdGetListOptions,
+    ): Promise<ListResult<CollectionModel>> {
+        return await this.client.collections.getList(
+            options.page,
+            options.perPage,
+            {
+                ...options.options,
+            },
+        ).then(
+            (res: ListResult<CollectionModel>) => {
+                return res;
+            },
+        ).catch(
+            (err: ClientResponseError) => {
+                throw err;
+            },
+        );
+    }
+
+    /**
+     * Get all the collections from the PocketBase.
+     *
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param options {PbdGetListOptions} - The options for the getFullCollectionsList
+     * @returns {Promise<CollectionModel[]>} - The list of collections
+     */
+    async getCollectionFullList(
+        options: PbdGetListOptions,
+    ): Promise<CollectionModel[]> {
+        return await this.client.collections.getFullList({
+            ...options.options,
+        }).then(
+            (res: CollectionModel[]) => {
+                return res;
+            },
+        ).catch(
+            (err: ClientResponseError) => {
+                throw err;
+            },
+        );
+    }
+
+    /**
+     * Get the first collection from the PocketBase using a specific filter.
+     *
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param options {PbdGetListOptions} - The options for the getFullCollectionsList
+     * @returns {Promise<CollectionModel | null>} - The list of collections
+     */
+    async getCollectionFirstListItem(
+        options: PbdGetListOptions,
+    ): Promise<CollectionModel | null> {
+        return await this.client.collections.getFirstListItem(
+            options.filter ? options.filter.toString() : "",
+        ).then(
+            (res: CollectionModel | null) => {
+                return res;
+            },
+        ).catch(
+            (err: ClientResponseError) => {
+                throw err;
+            },
+        );
+    }
+
+    /**
+     * Get a specific collection from the PocketBase.
+     *
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param id_or_name {string} - The id or name of the collection
+     * @returns {Promise<CollectionModel>} - The collection
+     */
+    async getOneCollection(id_or_name: string): Promise<CollectionModel> {
+        return await this.client.collections.getOne(id_or_name).then(
+            (res: CollectionModel) => {
+                return res;
+            },
+        ).catch(
+            (err: ClientResponseError) => {
+                throw err;
+            },
+        );
+    }
+
+    /**
+     * Create a new collection in the PocketBase.
+     *
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param options {PbdCreateCollectionOptions} - The options for the getFullCollectionsList
+     * @returns {Promise<CollectionModel>} - The collection that was created
+     */
+    async createCollection(
+        options: PbdCreateCollectionOptions,
+    ): Promise<CollectionModel> {
+        return await this.client.collections.create({
+            name: options.name,
+            type: options.type,
+            schema: options.schema,
+            createRule: options.createRule,
+            updateRule: options.updateRule,
+            deleteRule: options.deleteRule,
+            options: options.options,
+        }).then(
+            (res: CollectionModel) => {
+                return res;
+            },
+        ).catch(
+            (err: ClientResponseError) => {
+                throw err;
+            },
+        );
+    }
+
+    /**
+     * Update an existing collection in the PocketBase.
+     *
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param options {PbdCreateCollectionOptions} - The options for the getFullCollectionsList
+     * @returns {Promise<CollectionModel>} - The collection that was created
+     */
+    async updateCollection(
+        options: PbdCreateCollectionOptions,
+    ): Promise<CollectionModel> {
+        return await this.client.collections.update(options.name, {
+            name: options.name,
+            type: options.type,
+            schema: options.schema,
+            createRule: options.createRule,
+            updateRule: options.updateRule,
+            deleteRule: options.deleteRule,
+            options: options.options,
+        }).then(
+            (res: CollectionModel) => {
+                return res;
+            },
+        ).catch(
+            (err: ClientResponseError) => {
+                throw err;
+            },
+        );
+    }
+
+    /**
+     * Delete an existing collection in the PocketBase.
+     *
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param name_or_id {string} - The name or id of the collection
+     * @returns {Promise<boolean>} - The result of the delete
+     */
+    async deleteCollection(name_or_id: string): Promise<boolean> {
+        return await this.client.collections.delete(name_or_id).then(
+            (res: boolean) => {
+                return res;
+            },
+        ).catch(
+            (err: ClientResponseError) => {
+                throw err;
+            },
+        );
+    }
+
+    /**
+     * Import collections into the PocketBase.
+     *
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param collections {Array<CollectionModel>} - The collections to import into pocketbase
+     * @param deleteMissing {boolean} - Whether to delete missing collections
+     * @returns {Promise<boolean>} - The result of the import
+     */
+    async importCollections(
+        collections: Array<CollectionModel>,
+        deleteMissing: boolean,
+    ): Promise<boolean> {
+        return await this.client.collections.import(collections, deleteMissing)
+            .then(
+                (res: boolean) => {
+                    return res;
+                },
+            ).catch(
+                (err: ClientResponseError) => {
+                    throw err;
+                },
+            );
+    }
 }
 
 /**
  * Module exports
  */
-export type {
-    PbdAuthPasswordOptions,
-    PbdConfirmEmailChangeOptions,
-    PbdConfirmPasswordResetOptions,
-    PbdConfirmVerificationOptions,
-    PbdGetListOptions,
-    PbdOauthAuthOptions,
-    PbdOptions,
-    PbdQueryOptions,
-    PbdRequestEmailChangeOptions,
-    PbdRequestPasswordResetOptions,
-    PbdRequestVerificationOptions,
-} from "$types";
-
-export type { Client };
-
+export type * from "$types";
+export type * from "pocketbase";
 export default Pbd;
