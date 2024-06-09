@@ -4,18 +4,19 @@ import { load } from "jsr:@std/dotenv";
 import Client from "pocketbase";
 import PocketBase from "pocketbase";
 
-import Pbd from "../mod.ts";
-
 await load({
     export: true,
     allowEmptyValues: false,
     envPath: "./.env",
 });
 
-const pocketbase_user: string | undefined = Deno.env.get(
+/** @type {string | undefined} */
+const pocketbase_user = Deno.env.get(
     "POCKETBASE_USER_EMAIL",
 );
-const pocketbase_password: string | undefined = Deno.env.get(
+
+/** @type {string | undefined} */
+const pocketbase_password = Deno.env.get(
     "POCKETBASE_USER_SECRET",
 );
 
@@ -30,23 +31,20 @@ is running and then set your variables properly.",
 // Save the testing PocketBase instance details
 
 // Use a local pocketbase instance
-const pb: Client = new PocketBase("http://127.0.0.1:8090");
-const pbd: Pbd = new Pbd({ client: pb });
+
+/** @type {Client} */
+const pb = new PocketBase("http://127.0.0.1:8090");
 
 // Test authentication
 Deno.test({
-    name: "Test authentication",
+    name: "Test authentication (JS-SDK)",
     fn: async () => {
         // deno-lint-ignore no-console
         console.log(`==== Auth Store initial state ====`);
 
         // deno-lint-ignore no-console
         console.log(pb.authStore);
-        await pbd.authWithPassword({
-            collectionName: "users",
-            user_or_email: pocketbase_user,
-            password: pocketbase_password,
-        });
+        await pb.collection("users").authWithPassword(pocketbase_user, pocketbase_password);
 
         // deno-lint-ignore no-console
         console.log(`Authenticating as ${pocketbase_user}`);
@@ -60,10 +58,6 @@ Deno.test({
     },
 });
 
-Deno.bench("Test authentication", async () => {
-    await pbd.authWithPassword({
-        collectionName: "users",
-        user_or_email: pocketbase_user,
-        password: pocketbase_password,
-    });
+Deno.bench("Test authentication (JS-SDK)", async () => {
+    await pb.collection("users").authWithPassword(pocketbase_user, pocketbase_password);
 })
