@@ -1,4 +1,6 @@
 import Client, {
+AdminAuthResponse,
+    AdminModel,
     AuthMethodsList,
     ClientResponseError,
     CollectionModel,
@@ -15,6 +17,10 @@ import { LogModel } from "pocketbase";
 import appleClientSecret from "pocketbase";
 
 import {
+PbdAdminAuthWithPasswordOptions,
+    PbdAdminConfirmPasswordResetOptions,
+    PbdAdminGetListOptions,
+    PbdAdminPasswordResetOptions,
     PbdAuthPasswordOptions,
     PbdConfirmEmailChangeOptions,
     PbdConfirmPasswordResetOptions,
@@ -28,6 +34,8 @@ import {
     PbdRequestPasswordResetOptions,
     PbdRequestVerificationOptions,
     PbdUnlinkExternalAuthOptions,
+    PbdAdminViewOptions,
+    PbdAdminCreateOptions
 } from "$types";
 import { PbdQueryOptions } from "$types";
 
@@ -762,6 +770,13 @@ export class Pbd {
         );
     }
 
+    /**
+     * Wraps the createBackup method from the pocketbase client.
+     * 
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param backup_name {string} - The name of the backup to create.
+     * @returns {Promise<boolean>} - The result of the createBackup
+     */
     async createBackup(backup_name: string): Promise<boolean> {
         return await this.client.backups.create(backup_name).then(
             (res: boolean) => {
@@ -774,6 +789,13 @@ export class Pbd {
         );
     }
 
+    /**
+     * Uploads a backup to the PocketBase server.
+     * 
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param blob {Blob} - The blob to upload
+     * @returns {Promise<boolean>} - The result of the upload
+     */
     async uploadBackup(blob: Blob): Promise<boolean> {
         return await this.client.backups.upload(
             {
@@ -790,6 +812,13 @@ export class Pbd {
         );
     }
 
+    /**
+     * Delete a backup from the PocketBase server.
+     * 
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param backup_name {string} - The name of the backup
+     * @returns {Promise<boolean>} - The result of the delete
+     */
     async deleteBackup(backup_name: string): Promise<boolean> {
         return await this.client.backups.delete(backup_name).then(
             (res: boolean) => {
@@ -1207,6 +1236,170 @@ export class Pbd {
                 },
             );
     }
+
+    /**
+     * Authenticates an admin with the provided email and password.
+     * 
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param options {PbdAdminAuthWithPasswordOptions} - The options for the adminAuthWithPassword
+     * @returns {Promise<AdminAuthResponse>} - The result of the adminAuthWithPassword
+     */
+    async adminAuthWithPassword(options: PbdAdminAuthWithPasswordOptions): Promise<AdminAuthResponse> {
+        return await this.client.admins.authWithPassword(options.email, options.password)
+            .then(
+                (res: AdminAuthResponse) => {
+                    return res;
+                },
+            ).catch(
+                (err: ClientResponseError) => {
+                    throw err;
+                },
+            );
+    }
+
+    /**
+     * Refreshes an admin token.
+     * 
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @returns {Promise<AdminAuthResponse>} - The result of the adminAuthRefresh
+     */
+    async adminAuthRefresh(): Promise<AdminAuthResponse> {
+        return await this.client.admins.authRefresh().then(
+            (res: AdminAuthResponse) => {
+                return res;
+            }
+        ).catch(
+            (err: ClientResponseError) => {
+                throw err;
+            },
+        );
+    }
+
+    /**
+     * Requests a password reset for an admin account with the provided email.
+     * 
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param email {string} - The email of the admin
+     * @returns {Promise<boolean>} - The result of the requestPasswordReset
+     */
+    async adminRequestPasswordReset(options: PbdAdminPasswordResetOptions): Promise<boolean> {
+        return await this.client.admins.requestPasswordReset(options.email).then(
+            (res: boolean) => {
+                return res;
+            }
+        ).catch(
+            (err: ClientResponseError) => {
+                throw err;
+            },
+        );
+    }
+
+    /**
+     * Confirms a password reset for an admin account. If the token
+     * is invalid, an error will be thrown.
+     * 
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param token {string} - The token of the admin account to reset
+     * @param password {string} - The new password for the admin account
+     * @param password_confirm {string} - The new password for the admin account
+     * @returns {Promise<boolean>} - The result of the confirmPasswordReset
+     */
+    async adminConfirmPasswordReset(options: PbdAdminConfirmPasswordResetOptions): Promise<boolean> {
+        return await this.client.admins.confirmPasswordReset(options.token, options.password, options.password_confirm).then(
+            (res: boolean) => {
+                return res;
+            }
+        ).catch(
+            (err: ClientResponseError) => {
+                throw err;
+            },
+        );
+    }
+
+    /**
+     * Get a list of admins. The list can be filtered and sorted.
+     * 
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param options {PbdAdminGetListOptions} - The options for the adminGetList
+     * @returns {Promise<ListResult<AdminModel>>} - The result of the adminGetList
+     */
+    async adminGetList(options: PbdAdminGetListOptions): Promise<ListResult<AdminModel>> {
+        return await this.client.admins.getList(options.page, options.perPage, {
+            sort: options.sort,
+            filter: options.filter
+        }).then(
+            (res: ListResult<AdminModel>) => {
+                return res;
+            }
+        ).catch(
+            (err: ClientResponseError) => {
+                throw err;
+            },
+        );
+    }
+
+    /**
+     * Get the full list of admins. The list can be filtered and sorted.
+     * 
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param options {PbdAdminGetListOptions} - The options for the adminGetFullList
+     * @returns {Promise<AdminModel[]>} - The result of the adminGetFullList
+     */
+    async adminGetFullList(options: PbdAdminGetListOptions): Promise<AdminModel[]> {
+        return await this.client.admins.getFullList({
+            sort: options.sort,
+            filter: options.filter,
+            options: options.options
+        });
+    }
+
+    /**
+     * Get the first item in the list based on the filter or sort options.
+     * 
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param options {PbdAdminGetListOptions} - The options for the adminGetFirstListItem
+     * @returns {Promise<AdminModel>} - The result of the adminGetFirstListItem
+     */
+    async adminGetFirstListItem(options: PbdAdminGetListOptions): Promise<AdminModel> {
+        return await this.client.admins.getFirstListItem(options.filter ? options.filter : "");
+    }
+
+    /**
+     * Get an admin by its ID. The admin can be filtered and sorted.
+     * 
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param options {PbdAdminViewOptions} - The options for the adminView
+     * @returns {Promise<AdminModel>} - The result of the adminView
+     */
+    async adminView(options: PbdAdminViewOptions): Promise<AdminModel> {
+            return await this.client.admins.getOne(options.id).then(
+                (res: AdminModel) => {
+                    return res;
+                }
+            ).catch(
+                (err: ClientResponseError) => {
+                    throw err;
+                },
+            );
+    }
+
+    async adminCreate(options: PbdAdminCreateOptions): Promise<AdminModel> {
+        return await this.client.admins.create({
+            email: options.email,
+            password: options.password,
+            passwordConfirm: options.passwordConfirm,
+            avatar: options.avatar
+        }).then(
+            (res: AdminModel) => {
+                return res;
+            }
+        ).catch(
+            (err: ClientResponseError) => {
+                throw err;
+            },
+        );
+    }
+
 }
 
 /**

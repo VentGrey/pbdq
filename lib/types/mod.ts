@@ -77,3 +77,35 @@ export interface PbdCreateCollectionOptions extends PbdQueryOptions {
     updateRule?: string;
     deleteRule?: string;
 }
+
+export interface PbdAdminAuthWithPasswordOptions {
+    email: string;
+    password: string;
+}
+
+export interface PbdAdminPasswordResetOptions {
+    email: string;
+}
+
+export interface PbdAdminConfirmPasswordResetOptions {
+    token: string;
+    password: string;
+    password_confirm: string;
+}
+
+export interface PbdAdminGetListOptions extends PbdQueryOptions {
+    page: number;
+    perPage: number;
+    sort?: string;
+}
+
+export interface PbdAdminViewOptions extends PbdQueryOptions {
+    id: string;
+}
+
+export interface PbdAdminCreateOptions {
+    email: string;
+    password: string;
+    passwordConfirm: string;
+    avatar: number;
+}
