@@ -68,8 +68,8 @@ deno test
 
 ## Special rules for JS files
 
-- Strict typing is still enforced, though this is done by type annotations
-  in JS files and these are ignored by the compiler. Check how to use
+- Strict typing is still enforced, though this is done by type annotations in JS
+  files and these are ignored by the compiler. Check how to use
   [JSDoc](https://jsdoc.app) for more information.
 
 - Only PocketBase benchmarks are allowed to be in JS files.

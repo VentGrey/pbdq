@@ -51,7 +51,8 @@ _Special cases are not special enough to break the rules_.
   support.
 
 - Still unstable I still have to decide some parts of this:
-  - [x] Throw errors for users to handle vs ~~Return empty objects/arrays tousers~~.
+  - [x] Throw errors for users to handle vs ~~Return empty objects/arrays
+        tousers~~.
   - [x] ~~Interpret PocketBase errors~~ / Forward original errors to users.
   - [ ] Offer "extensions" which are not part of the official SDK but might give
         some extra features by combining existing library methods.
@@ -117,12 +118,12 @@ const products = await pbd.getList<Product>({
 ## Performance 🔋
 
 See [BENCHMARKS.md](BENCHMARKS.md) to find how tis library might impact your
-existing codebase / new environments. In every benchmark you should see both
-the PBD usage and the pure pocketbase js-sdk usage. 
+existing codebase / new environments. In every benchmark you should see both the
+PBD usage and the pure pocketbase js-sdk usage.
 
-Since the `pocketbase` npm package is written in JS and the SDK itself is
-js as well. All the deno tests/benchmarks regarding pocketbase are written in
-JS with JSDoc.
+Since the `pocketbase` npm package is written in JS and the SDK itself is js as
+well. All the deno tests/benchmarks regarding pocketbase are written in JS with
+JSDoc.
 
 ## Contributing 💻
 

@@ -44,7 +44,10 @@ Deno.test({
 
         // deno-lint-ignore no-console
         console.log(pb.authStore);
-        await pb.collection("users").authWithPassword(pocketbase_user, pocketbase_password);
+        await pb.collection("users").authWithPassword(
+            pocketbase_user,
+            pocketbase_password,
+        );
 
         // deno-lint-ignore no-console
         console.log(`Authenticating as ${pocketbase_user}`);
@@ -59,5 +62,8 @@ Deno.test({
 });
 
 Deno.bench("Test authentication (JS-SDK)", async () => {
-    await pb.collection("users").authWithPassword(pocketbase_user, pocketbase_password);
-})
+    await pb.collection("users").authWithPassword(
+        pocketbase_user,
+        pocketbase_password,
+    );
+});

@@ -66,4 +66,4 @@ Deno.bench("Test authentication", async () => {
         user_or_email: pocketbase_user,
         password: pocketbase_password,
     });
-})
+});
