@@ -109,3 +109,15 @@ export interface PbdAdminCreateOptions {
     passwordConfirm: string;
     avatar: number;
 }
+
+export interface PbdAdminUpdateOptions {
+    id: string;
+    email?: string;
+    password?: string;
+    passwordConfirm?: string;
+    avatar?: number;
+}
+
+export interface PbdAdminDeleteOptions {
+    id: string;
+}

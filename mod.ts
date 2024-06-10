@@ -20,8 +20,10 @@ import {
     PbdAdminAuthWithPasswordOptions,
     PbdAdminConfirmPasswordResetOptions,
     PbdAdminCreateOptions,
+    PbdAdminDeleteOptions,
     PbdAdminGetListOptions,
     PbdAdminPasswordResetOptions,
+    PbdAdminUpdateOptions,
     PbdAdminViewOptions,
     PbdAuthPasswordOptions,
     PbdConfirmEmailChangeOptions,
@@ -1405,6 +1407,13 @@ export class Pbd {
         );
     }
 
+    /**
+     * Create a new admin in the PocketBase server.
+     * 
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param options {PbdAdminCreateOptions} - The options for the adminCreate
+     * @returns {Promise<AdminModel>} - The result of the adminCreate
+     */
     async adminCreate(options: PbdAdminCreateOptions): Promise<AdminModel> {
         return await this.client.admins.create({
             email: options.email,
@@ -1413,6 +1422,35 @@ export class Pbd {
             avatar: options.avatar,
         }).then(
             (res: AdminModel) => {
+                return res;
+            },
+        ).catch(
+            (err: ClientResponseError) => {
+                throw err;
+            },
+        );
+    }
+
+    async adminUpdate(options: PbdAdminUpdateOptions): Promise<AdminModel> {
+        return await this.client.admins.update(options.id, {
+            email: options.email,
+            password: options.password,
+            passwordConfirm: options.passwordConfirm,
+            avatar: options.avatar,
+        }).then(
+            (res: AdminModel) => {
+                return res;
+            },
+        ).catch(
+            (err: ClientResponseError) => {
+                throw err;
+            },
+        );
+    }
+
+    async adminDelete(options: PbdAdminDeleteOptions): Promise<boolean> {
+        return await this.client.admins.delete(options.id).then(
+            (res: boolean) => {
                 return res;
             },
         ).catch(

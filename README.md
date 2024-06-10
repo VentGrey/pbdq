@@ -48,7 +48,7 @@ _Special cases are not special enough to break the rules_.
 - Not really tested in browsers. This was made for server side + Deno in mind.
   Tho, it would make sense if this runs in the browser as well, since JSR
   produces ESModules and the JS-SDK is for Web Frameworks with SPA/MPA/SSR
-  support.
+  support. I wouldn't recommend overthinking bundle size though...
 
 - Still unstable I still have to decide some parts of this:
   - [x] Throw errors for users to handle vs ~~Return empty objects/arrays
