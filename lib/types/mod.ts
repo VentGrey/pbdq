@@ -1,5 +1,5 @@
 import Client, { CommonOptions } from "pocketbase";
-import Pbd from "../../mod.ts";
+import Pbd from "$pbdq";
 
 /**
  * The options for the Pbd wrapper object. As of now, it only needs an already
@@ -161,42 +161,191 @@ export interface PbdAuthPasswordOptions extends PbdQueryOptions {
     password: string;
 }
 
+/**
+ * The options for the getList method.
+ */
 export interface PbdGetListOptions extends PbdQueryOptions {
+    /**
+     * The page number.
+     * @type {number}
+     */
     page: number;
+    
+    /**
+     * The number of results per page.
+     * @type {number}
+     */
     perPage: number;
 }
 
+/**
+ * The options for the downloadBackup method.
+ */
 export interface PbdDownloadBackupOptions {
+    
+    /**
+     * The name of the backup to download. If you saved in either
+     * zip or other formats, you'll have to provide the extension
+     * as well.
+     */
     backup_name: string;
+
+    /**
+     * A generated token to access the backup.
+     * {@linkcode Pbd.downloadBackup}
+    */
     token: string;
 }
 
+
 export interface PbdGetLogsOptions extends PbdQueryOptions {
+
+    /** 
+     * The page number.
+     * @type {number}
+    */
     page: number;
+    
+    /**
+     * The number of results per page.
+     * @type {number}
+     */
     perPage: number;
 }
 
+/**
+ * The options for the createCollection method.
+ * @see {@link Pbd.createCollection}
+ */
 export interface PbdCreateCollectionOptions extends PbdQueryOptions {
+    /**
+     * The name of the collection you want to create.
+     * @type {string}
+     */
     name: string;
+
+    /**
+     * The schema of the collection.
+     *
+     * @type {Record<string, unknown>}
+     */
     schema: Record<string, unknown>;
+
+    /**
+     * The collection type, see Pocketbase {@linkcode CommonOptions} to find
+     * out what options are available for each type.
+     *
+     * @see {@link https://pocketbase.io/docs/collections} for more information
+     * about collection types.
+     */
     type: "base" | "auth" | "view";
+
+    /**
+     * A pocketbase filter (using pocketbase syntax) that can be used
+     * to condition the listing of the collection.
+     *
+     * For more indormation see:
+     * {@link https://docs.pocketbase.io/docs/api-rules-and-filters}
+     *
+     * @type {string}
+     */
+    listRule?: string;
+
+    /**
+     * A pocketbase filter (using pocketbase syntax) that can be used
+     * to condition the viewing of the collection.
+     *
+     * For more indormation see:
+     * {@link https://docs.pocketbase.io/docs/api-rules-and-filters}
+     *
+     * @type {string}
+     */
+    viewRule?: string;
+
+    /**
+     * A pocketbase filter (using pocketbase syntax) that can be used
+     * to condition the creation of the collection.
+     *
+     * For more indormation see:
+     * {@link https://docs.pocketbase.io/docs/api-rules-and-filters}
+     *
+     * @type {string}
+     */
     createRule?: string;
+
+    /**
+     * A pocketbase filter (using pocketbase syntax) that can be used
+     * to condition the update of the collection.
+     *
+     * For more indormation see:
+     * {@link https://docs.pocketbase.io/docs/api-rules-and-filters}
+     *
+     * @type {string}
+     */
     updateRule?: string;
+
+    /**
+     * A pocketbase filter (using pocketbase syntax) that can be used
+     * to condition the deletion of the collection.
+     *
+     * For more indormation see:
+     * {@link https://docs.pocketbase.io/docs/api-rules-and-filters}
+     *
+     * @type {string}
+     */
     deleteRule?: string;
 }
 
+/**
+ * The options for the adminAuthWithPassword method.
+ * @see {@link Pbd.adminAuthWithPassword}
+ */
 export interface PbdAdminAuthWithPasswordOptions {
+    /**
+     * The user email to authenticate with.
+     * @type {string}
+     */
     email: string;
+
+    /**
+     * The user password required to authenticate.
+     * @type {string}
+     */
     password: string;
 }
 
+/**
+ * The options for the adminPasswordReset method.
+ */
 export interface PbdAdminPasswordResetOptions {
+    /**
+     * The user email to send the password reset request to.
+     * @type {string}
+     */
     email: string;
 }
 
+/**
+ * The options for the adminConfirmPasswordReset method.
+ * @see {@link Pbd.adminConfirmPasswordReset}
+ */
 export interface PbdAdminConfirmPasswordResetOptions {
+    /**
+     * The received token from the password reset request.
+     * @type {string}
+     */
     token: string;
+
+    /**
+     * The new user password to be set.
+     * @returns {string}
+     */
     password: string;
+
+    /**
+     * The password confirmation (Same as password).
+     * @type {string}
+     */
     password_confirm: string;
 }
 
@@ -247,8 +396,22 @@ export interface PbdAdminCreateOptions {
      * @type {string}
      */
     email: string;
+
+    /**
+     * The password of the admin to be created.
+     * @type {string}
+     */
     password: string;
+
+    /**
+     * The password confirmation (Same as password).
+     * @type {string}
+     */
     passwordConfirm: string;
+
+    /**
+     * The avatar of the admin. Defaults to 0.
+     */
     avatar: number;
 }
 
@@ -337,6 +500,37 @@ export interface PbdCronExtOptions {
  * @see {@link PbdCronExtOptions}
  */
 export interface PbdExtBox {
+    /**
+     * Extend Pocketbase Auth with these alternatives.
+     * This object holds the auth related functions.
+     */
+    auth: {
+        /**
+         * Get the JWT auth header from the Pbd instance. This extracts
+         * the user token from the PocketBase client present in the Pbd
+         * instance. When you authenticate either as a user or as an
+         * admin, the SDK saves a JWT token in the AuthStore.
+         *
+         * This token uses HMAC + SHA-256 encoded in base64. You can use
+         * this token to make authenticated requests to the API.
+         *
+         * @param Pbd {Pbd} - The Pbd instance to use in this extension.
+         * @returns {string} - The JWT auth header
+         */
+        getJwtHeader: (Pbd: Pbd) => string;
+
+        /**
+         * Decode the JWT header from the Pbd instance. This is useful for
+         * debugging or applying custom routing logic based on the JWT
+         * header.
+         *
+         * This depends on the `djwt` library.
+         *
+         * @param Pbd {Pbd} - The Pbd instance to extract the JWT header from.
+         * @returns {string} - Decoded JWT header
+         */
+        decodeJwtHeader: (Pbd: Pbd) => string;
+    };
     /**
      * Extend PocketBase with Deno Cronjobs
      * This object holds the cronjob related functions.

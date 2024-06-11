@@ -40,7 +40,7 @@ _Special cases are not special enough to break the rules_.
   - [ ] Browser
   - [ ] Cloudflare Workers
 
-### Extensions 🧩
+### Extension Functions 🧩
 
 PBDQ comes with optional extensions, which are special methods that can be
 called from the `pbd` instance. These extensions mix in features from the
@@ -49,6 +49,43 @@ official PocketBase JS-SDK with pbdq and simplify some actions or operations.
 These are "extensions" because they are not part of the official SDK which is
 the main target of this wrapper. And because these are limited to some use
 cases, mainly server-only deno features.
+
+#### Deno Cron Extension 🕒
+
+> [!IMPORTANT] Pocketbase already has an "Automatic" backups feature with
+> automatic cleaning in their User Interface.
+>
+> This extension is for cases where you want to create your backups outside the
+> user interface. For example a second backup server with custom schedules or
+> archival purposes.
+
+This extension allows you to setup a cron job to backup the PocketBase. It sets
+up a Deno Cron Job to create a backup of the database:
+
+```typescript
+import { Client }, PocketBase from "pocketbase";
+import { Pbd } from "@ventgrey/pbdq";
+import { PbdExt } from "@ventgrey/pbdq";
+
+const pb: Client = new PocketBase("http://127.0.0.1:8090");
+const pbd: Pbd = new Pbd({ client: pb });
+
+
+PbdExt.cron.setupBackup(pbd, {
+    cron_expression: "0 0 * * *", // every day at 00:00
+    backup_name: "my-backup", // the .zip will be added automatically
+});
+```
+
+#### Deno
+
+This will create a backup every day at 00:00. You can register multiple cron
+jobs if you want. All cronjobs registered with this extension will be named:
+`PocketBase Backup (Random-UUID)`.
+
+If you don't choose a backup name, the default will be a backup made with the
+current date and time: `auto-YYYY-MM-DD-HH-MM-SS.zip`, for example
+`auto-2022-01-01-00-00-00.zip`.
 
 ## Limitations 🔒
 

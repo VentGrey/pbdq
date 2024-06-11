@@ -1,6 +1,6 @@
 {
     "name": "@ventgrey/pbdq",
-    "version": "0.12.2",
+    "version": "0.13.0",
     "exports": "./mod.ts",
     "publish": {
         "include": [
@@ -40,8 +40,10 @@
         }
     },
     "imports": {
+        "$pbdq": "./mod.ts",
         "$extensions": "./lib/extensions/mod.ts",
         "$types": "./lib/types/mod.ts",
+        "$extensions/jwt": "https://deno.land/x/djwt@v3.0.2/mod.ts",
         "pocketbase": "npm:pocketbase@^0.21.3"
     },
     "tasks": {

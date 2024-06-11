@@ -1297,10 +1297,13 @@ export class Pbd {
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
             );
         }
+
         return await this.client.collections.create({
             name: options.name,
             type: options.type,
             schema: options.schema,
+            listRule: options.listRule,
+            viewRule: options.viewRule,
             createRule: options.createRule,
             updateRule: options.updateRule,
             deleteRule: options.deleteRule,
