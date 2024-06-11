@@ -1,6 +1,6 @@
 {
     "name": "@ventgrey/pbdq",
-    "version": "0.12.0",
+    "version": "0.12.2",
     "exports": "./mod.ts",
     "publish": {
         "include": [
