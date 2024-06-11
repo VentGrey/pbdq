@@ -1,4 +1,5 @@
-# pbdq - PocketBase Deno Qwrapper 🦕📚
+# pbdq - PocketBase Deno Qwrapper
+<img src="https://github.com/VentGrey/pbdq/assets/24773698/020830a0-3043-4947-9a01-a3de1166800a" height="250" width="250"/>
 
 > Qwrapper means Query Wrapper.
 
