@@ -20,12 +20,17 @@ any other environment. Be aware that I created this for my own purposes and will
 consider my own use cases. I'm open to patches that follow the Python zen:
 _Special cases are not special enough to break the rules_.
 
-## Features 🌟
+> [!IMPORTANT]\
+> If this library causes any bugs for you please report them here as an issue.
+> **DO NOT OPEN** pbdq bugs or support requests in the official PocketBase
+> repository.
+
+## Features 🌟 ...sort of.
 
 - Portable between JS environments thanks to JSR
 - In sync with latest PocketBase JS-SDK verion
 - Deno + Oak first
-- No complex type-gymnastics.
+- No complex type-gymnastics!
 - (WIP) Fully docummented and tested in production.
 - Tested with:
   - [ ] Bun
@@ -33,6 +38,16 @@ _Special cases are not special enough to break the rules_.
   - [x] Node
   - [ ] Browser
   - [ ] Cloudflare Workers
+
+### Extensions 🧩
+
+PBDQ comes with optional extensions, which are special methods that can be
+called from the `pbd` instance. These extensions mix in features from the
+official PocketBase JS-SDK with pbdq and simplify some actions or operations.
+
+These are "extensions" because they are not part of the official SDK which is
+the main target of this wrapper. And because these are limited to some use
+cases, mainly server-only deno features.
 
 ## Limitations 🔒
 
@@ -51,9 +66,6 @@ _Special cases are not special enough to break the rules_.
   support. I wouldn't recommend overthinking bundle size though...
 
 - Still unstable I still have to decide some parts of this:
-  - [x] Throw errors for users to handle vs ~~Return empty objects/arrays
-        tousers~~.
-  - [x] ~~Interpret PocketBase errors~~ / Forward original errors to users.
   - [ ] Offer "extensions" which are not part of the official SDK but might give
         some extra features by combining existing library methods.
   - [ ] Whether or not to error users if they try using an admin method without
@@ -85,7 +97,7 @@ from the `products` collection. This assumes you already have type for `Product`
 in your project.
 
 ```typescript
-import Client, { ListResult } from "pocketbase";
+import Client, { AdminModel, ListResult } from "pocketbase";
 import PocketBase from "pocketbase";
 
 import { Pbd } from "pbd";
@@ -114,6 +126,27 @@ const products = await pbd.getList<Product>({
     options: { sort: "-created" },
 });
 ```
+
+### Admin Usage 🧑‍🚒
+
+All admin operations should be available for remote PocketBase administration.
+
+```typescript
+// Admin services are also available if you need them:
+const admin: AdminModel = await pbd.adminCreate({
+    email: "admin@localhost",
+    password: "admin",
+    passwordConfirm: "admin",
+    avatar: "https://avatars.githubusercontent.com/u/106275?s=200&v=4",
+});
+```
+
+(At runtime) If you try to perform an admin operation but the supplied client's
+AuthStore does not show administrator details, pbdq will throw a warning to the
+console:
+
+> Attempted to make an administrator operation. The current client 'isAdmin'
+> state is false.
 
 ## Performance 🔋
 

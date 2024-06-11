@@ -8,12 +8,11 @@ import Client, {
     HealthCheckResponse,
     HourlyStats,
     ListResult,
+    LogModel,
     RecordAuthResponse,
     RecordModel,
 } from "pocketbase";
-
 import BackupFileInfo from "pocketbase";
-import { LogModel } from "pocketbase";
 import appleClientSecret from "pocketbase";
 
 import {
@@ -30,16 +29,19 @@ import {
     PbdConfirmPasswordResetOptions,
     PbdConfirmVerificationOptions,
     PbdCreateCollectionOptions,
+    PbdDownloadBackupOptions,
     PbdGetListOptions,
     PbdGetLogsOptions,
     PbdOauthAuthOptions,
     PbdOptions,
+    PbdQueryOptions,
     PbdRequestEmailChangeOptions,
     PbdRequestPasswordResetOptions,
     PbdRequestVerificationOptions,
     PbdUnlinkExternalAuthOptions,
 } from "$types";
-import { PbdQueryOptions } from "$types";
+
+import { PbdExt } from "$extensions";
 
 /**
  * Pbd is a wrapper for the PocketBase JS SDK. This wrapper helps you simplify
@@ -115,6 +117,7 @@ import { PbdQueryOptions } from "$types";
  *    // Do something with the result
  *    result ? console.log("Backup succeeded") : console.log("Backup failed");
  * });
+ * ```
  *
  * @module
  */
@@ -125,6 +128,10 @@ export class Pbd {
      * will change the client state to be authenticated, get or set records,
      * interact with backups, etc.
      *
+     * This client class contains all the methods and properties that you
+     * can mutate with the js-sdk. Pbd uses that SDK and tries to wrap queries
+     * or common operations.
+     *
      * @type {import("pocketbase").Client}
      */
     client: Client;
@@ -134,7 +141,7 @@ export class Pbd {
      * passed in when initializing a new wrapper instance.
      *
      * @param options - The Pbd options when initializing the pocketbase
-     * wrapper.
+     * wrapper. See {@link PbdOptions} for more information.
      */
     constructor(options: PbdOptions) {
         this.client = options.client;
@@ -336,6 +343,12 @@ export class Pbd {
     async requestEmailChange(
         options: PbdRequestEmailChangeOptions,
     ): Promise<boolean> {
+        if (!this.client.authStore.isValid) {
+            // deno-lint-ignore no-console
+            console.warn(
+                `Attempted to make a protected operation. The current client user auth state is ${this.client.authStore.isValid}.`,
+            );
+        }
         return await this.client.collection(options.collectionName)
             .requestEmailChange(options.email)
             .then(
@@ -408,6 +421,12 @@ export class Pbd {
     async listExternalAuth(
         options: PbdQueryOptions,
     ): Promise<ExternalAuthModel[]> {
+        if (!this.client.authStore.isValid) {
+            // deno-lint-ignore no-console
+            console.warn(
+                `Attempted to make a protected operation. The current client user auth state is ${this.client.authStore.isValid}.`,
+            );
+        }
         return await this.client.collection(options.collectionName)
             .listExternalAuths(
                 this.client.authStore.model?.id,
@@ -436,6 +455,12 @@ export class Pbd {
     async unlinkExternalAuth(
         options: PbdUnlinkExternalAuthOptions,
     ): Promise<void> {
+        if (!this.client.authStore.isValid) {
+            // deno-lint-ignore no-console
+            console.warn(
+                `Attempted to make a protected operation. The current client user auth state is ${this.client.authStore.isValid}.`,
+            );
+        }
         await this.client.collection(options.collectionName).unlinkExternalAuth(
             this.client.authStore.model?.id,
             options.provider,
@@ -667,15 +692,16 @@ export class Pbd {
      * @param options {PbdQueryOptions} - The options for the delete
      * @returns {Promise<void>} - The result of the delete
      */
-    async delete(record_id: string, options: PbdQueryOptions): Promise<void> {
+    async delete(
+        record_id: string,
+        options: PbdQueryOptions,
+    ): Promise<boolean> {
         return await this.client.collection(options.collectionName).delete(
             record_id,
-            {
-                ...options.options,
-            },
+            { ...options.options },
         ).then(
-            () => {
-                return;
+            (res: boolean) => {
+                return res;
             },
         ).catch(
             (err: ClientResponseError) => {
@@ -717,6 +743,12 @@ export class Pbd {
      * @returns {Promise<string>} - The result of the getToken
      */
     async getToken(): Promise<string> {
+        if (!this.client.authStore.isValid) {
+            // deno-lint-ignore no-console
+            console.warn(
+                `Attempted to make a protected operation. The current client user auth state is ${this.client.authStore.isValid}.`,
+            );
+        }
         return await this.client.files.getToken().then(
             (res: string) => {
                 return res;
@@ -754,6 +786,12 @@ export class Pbd {
      * @returns {Promise<BackupFileInfo[]>} - The result of the listBackups
      */
     async listBackups(options: PbdQueryOptions): Promise<BackupFileInfo[]> {
+        if (!this.client.authStore.isAdmin) {
+            // deno-lint-ignore no-console
+            console.warn(
+                `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
+            );
+        }
         return await this.client.backups.getFullList({
             ...options.options,
         }).then(
@@ -780,6 +818,12 @@ export class Pbd {
      * @returns {Promise<boolean>} - The result of the createBackup
      */
     async createBackup(backup_name: string): Promise<boolean> {
+        if (!this.client.authStore.isAdmin) {
+            // deno-lint-ignore no-console
+            console.warn(
+                `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
+            );
+        }
         return await this.client.backups.create(backup_name).then(
             (res: boolean) => {
                 return res;
@@ -799,6 +843,12 @@ export class Pbd {
      * @returns {Promise<boolean>} - The result of the upload
      */
     async uploadBackup(blob: Blob): Promise<boolean> {
+        if (!this.client.authStore.isAdmin) {
+            // deno-lint-ignore no-console
+            console.warn(
+                `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
+            );
+        }
         return await this.client.backups.upload(
             {
                 file: blob,
@@ -822,6 +872,12 @@ export class Pbd {
      * @returns {Promise<boolean>} - The result of the delete
      */
     async deleteBackup(backup_name: string): Promise<boolean> {
+        if (!this.client.authStore.isAdmin) {
+            // deno-lint-ignore no-console
+            console.warn(
+                `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
+            );
+        }
         return await this.client.backups.delete(backup_name).then(
             (res: boolean) => {
                 return res;
@@ -841,6 +897,12 @@ export class Pbd {
      * @returns {Promise<boolean>}
      */
     async restoreBackup(backup_name: string): Promise<boolean> {
+        if (!this.client.authStore.isAdmin) {
+            // deno-lint-ignore no-console
+            console.warn(
+                `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
+            );
+        }
         return await this.client.backups.restore(backup_name).then(
             (res: boolean) => {
                 return res;
@@ -856,12 +918,20 @@ export class Pbd {
      * Get the download url of a backup file from the PocketBase.
      *
      * @throws {ClientResponseError} - If the request to pocketbase fails
-     * @param backup_name {string}- The name of the backup
-     * @param token {string}- The token
+     * @param options {PbdDownloadBackupOptions} - The options for the downloadBackup
      * @returns {string}- The download url
      */
-    downloadBackup(backup_name: string, token: string): string {
-        return this.client.backups.getDownloadUrl(token, backup_name);
+    downloadBackup(options: PbdDownloadBackupOptions): string {
+        if (!this.client.authStore.isAdmin) {
+            // deno-lint-ignore no-console
+            console.warn(
+                `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
+            );
+        }
+        return this.client.backups.getDownloadUrl(
+            options.token,
+            options.backup_name,
+        );
     }
 
     /**
@@ -874,6 +944,12 @@ export class Pbd {
     async getLogList(
         options: PbdGetLogsOptions,
     ): Promise<ListResult<LogModel>> {
+        if (!this.client.authStore.isAdmin) {
+            // deno-lint-ignore no-console
+            console.warn(
+                `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
+            );
+        }
         return await this.client.logs.getList(options.page, options.perPage, {
             filter: options.filter,
         }).then(
@@ -895,6 +971,12 @@ export class Pbd {
      * @returns {Promise<LogModel>} - The log
      */
     async getOneLog(log_id: string): Promise<LogModel> {
+        if (!this.client.authStore.isAdmin) {
+            // deno-lint-ignore no-console
+            console.warn(
+                `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
+            );
+        }
         return await this.client.logs.getOne(log_id).then(
             (res: LogModel) => {
                 return res;
@@ -914,6 +996,12 @@ export class Pbd {
      * @returns {Promise<HourlyStats[]>} - The stats
      */
     async getLogStats(filter: string): Promise<HourlyStats[]> {
+        if (!this.client.authStore.isAdmin) {
+            // deno-lint-ignore no-console
+            console.warn(
+                `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
+            );
+        }
         return await this.client.logs.getStats({
             filter: filter,
         }).then(
@@ -934,6 +1022,12 @@ export class Pbd {
      * @returns {Promise<{[key: string]: unknown}>} - The settings
      */
     async getAllSettings(): Promise<{ [key: string]: unknown }> {
+        if (!this.client.authStore.isAdmin) {
+            // deno-lint-ignore no-console
+            console.warn(
+                `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
+            );
+        }
         return await this.client.settings.getAll().then(
             (res: { [key: string]: unknown }) => {
                 return res;
@@ -955,6 +1049,12 @@ export class Pbd {
     async updateSettings(
         settings: { [key: string]: unknown },
     ): Promise<{ [key: string]: unknown }> {
+        if (!this.client.authStore.isAdmin) {
+            // deno-lint-ignore no-console
+            console.warn(
+                `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
+            );
+        }
         return await this.client.settings.update(settings).then(
             (res: { [key: string]: unknown }) => {
                 return res;
@@ -973,6 +1073,12 @@ export class Pbd {
      * @returns {Promise<boolean>} - True if the backups are working
      */
     async testS3(backups: "storage" | "backups"): Promise<boolean> {
+        if (!this.client.authStore.isAdmin) {
+            // deno-lint-ignore no-console
+            console.warn(
+                `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
+            );
+        }
         return await this.client.settings.testS3(backups).then(
             (res: boolean) => {
                 return res;
@@ -993,6 +1099,12 @@ export class Pbd {
      * @returns {Promise<boolean>} - True if the email was sent
      */
     async testEmail(email: string, template: string): Promise<boolean> {
+        if (!this.client.authStore.isAdmin) {
+            // deno-lint-ignore no-console
+            console.warn(
+                `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
+            );
+        }
         return await this.client.settings.testEmail(email, template).then(
             (res: boolean) => {
                 return res;
@@ -1024,6 +1136,12 @@ export class Pbd {
         private_key: string;
         duration: number;
     }): Promise<appleClientSecret> {
+        if (!this.client.authStore.isAdmin) {
+            // deno-lint-ignore no-console
+            console.warn(
+                `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
+            );
+        }
         return await this.client.settings.generateAppleClientSecret(
             options.client_id,
             options.team_id,
@@ -1056,6 +1174,12 @@ export class Pbd {
     async getCollectionList(
         options: PbdGetListOptions,
     ): Promise<ListResult<CollectionModel>> {
+        if (!this.client.authStore.isAdmin) {
+            // deno-lint-ignore no-console
+            console.warn(
+                `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
+            );
+        }
         return await this.client.collections.getList(
             options.page,
             options.perPage,
@@ -1083,6 +1207,12 @@ export class Pbd {
     async getCollectionFullList(
         options: PbdGetListOptions,
     ): Promise<CollectionModel[]> {
+        if (!this.client.authStore.isAdmin) {
+            // deno-lint-ignore no-console
+            console.warn(
+                `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
+            );
+        }
         return await this.client.collections.getFullList({
             ...options.options,
         }).then(
@@ -1106,6 +1236,13 @@ export class Pbd {
     async getCollectionFirstListItem(
         options: PbdGetListOptions,
     ): Promise<CollectionModel | null> {
+        if (!this.client.authStore.isAdmin) {
+            // deno-lint-ignore no-console
+            console.warn(
+                `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
+            );
+        }
+
         return await this.client.collections.getFirstListItem(
             options.filter ? options.filter.toString() : "",
         ).then(
@@ -1127,6 +1264,12 @@ export class Pbd {
      * @returns {Promise<CollectionModel>} - The collection
      */
     async getOneCollection(id_or_name: string): Promise<CollectionModel> {
+        if (!this.client.authStore.isAdmin) {
+            // deno-lint-ignore no-console
+            console.warn(
+                `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
+            );
+        }
         return await this.client.collections.getOne(id_or_name).then(
             (res: CollectionModel) => {
                 return res;
@@ -1148,6 +1291,12 @@ export class Pbd {
     async createCollection(
         options: PbdCreateCollectionOptions,
     ): Promise<CollectionModel> {
+        if (!this.client.authStore.isAdmin) {
+            // deno-lint-ignore no-console
+            console.warn(
+                `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
+            );
+        }
         return await this.client.collections.create({
             name: options.name,
             type: options.type,
@@ -1177,6 +1326,12 @@ export class Pbd {
     async updateCollection(
         options: PbdCreateCollectionOptions,
     ): Promise<CollectionModel> {
+        if (!this.client.authStore.isAdmin) {
+            // deno-lint-ignore no-console
+            console.warn(
+                `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
+            );
+        }
         return await this.client.collections.update(options.name, {
             name: options.name,
             type: options.type,
@@ -1204,6 +1359,12 @@ export class Pbd {
      * @returns {Promise<boolean>} - The result of the delete
      */
     async deleteCollection(name_or_id: string): Promise<boolean> {
+        if (!this.client.authStore.isAdmin) {
+            // deno-lint-ignore no-console
+            console.warn(
+                `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
+            );
+        }
         return await this.client.collections.delete(name_or_id).then(
             (res: boolean) => {
                 return res;
@@ -1227,6 +1388,12 @@ export class Pbd {
         collections: Array<CollectionModel>,
         deleteMissing: boolean,
     ): Promise<boolean> {
+        if (!this.client.authStore.isAdmin) {
+            // deno-lint-ignore no-console
+            console.warn(
+                `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
+            );
+        }
         return await this.client.collections.import(collections, deleteMissing)
             .then(
                 (res: boolean) => {
@@ -1271,6 +1438,12 @@ export class Pbd {
      * @returns {Promise<AdminAuthResponse>} - The result of the adminAuthRefresh
      */
     async adminAuthRefresh(): Promise<AdminAuthResponse> {
+        if (!this.client.authStore.isAdmin) {
+            // deno-lint-ignore no-console
+            console.warn(
+                `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
+            );
+        }
         return await this.client.admins.authRefresh().then(
             (res: AdminAuthResponse) => {
                 return res;
@@ -1342,6 +1515,12 @@ export class Pbd {
     async adminGetList(
         options: PbdAdminGetListOptions,
     ): Promise<ListResult<AdminModel>> {
+        if (!this.client.authStore.isAdmin) {
+            // deno-lint-ignore no-console
+            console.warn(
+                `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
+            );
+        }
         return await this.client.admins.getList(options.page, options.perPage, {
             sort: options.sort,
             filter: options.filter,
@@ -1366,6 +1545,12 @@ export class Pbd {
     async adminGetFullList(
         options: PbdAdminGetListOptions,
     ): Promise<AdminModel[]> {
+        if (!this.client.authStore.isAdmin) {
+            // deno-lint-ignore no-console
+            console.warn(
+                `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
+            );
+        }
         return await this.client.admins.getFullList({
             sort: options.sort,
             filter: options.filter,
@@ -1383,6 +1568,12 @@ export class Pbd {
     async adminGetFirstListItem(
         options: PbdAdminGetListOptions,
     ): Promise<AdminModel> {
+        if (!this.client.authStore.isAdmin) {
+            // deno-lint-ignore no-console
+            console.warn(
+                `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
+            );
+        }
         return await this.client.admins.getFirstListItem(
             options.filter ? options.filter : "",
         );
@@ -1396,6 +1587,12 @@ export class Pbd {
      * @returns {Promise<AdminModel>} - The result of the adminView
      */
     async adminView(options: PbdAdminViewOptions): Promise<AdminModel> {
+        if (!this.client.authStore.isAdmin) {
+            // deno-lint-ignore no-console
+            console.warn(
+                `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
+            );
+        }
         return await this.client.admins.getOne(options.id).then(
             (res: AdminModel) => {
                 return res;
@@ -1409,12 +1606,18 @@ export class Pbd {
 
     /**
      * Create a new admin in the PocketBase server.
-     * 
+     *
      * @throws {ClientResponseError} - If the request to pocketbase fails
      * @param options {PbdAdminCreateOptions} - The options for the adminCreate
      * @returns {Promise<AdminModel>} - The result of the adminCreate
      */
     async adminCreate(options: PbdAdminCreateOptions): Promise<AdminModel> {
+        if (!this.client.authStore.isAdmin) {
+            // deno-lint-ignore no-console
+            console.warn(
+                `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
+            );
+        }
         return await this.client.admins.create({
             email: options.email,
             password: options.password,
@@ -1431,7 +1634,20 @@ export class Pbd {
         );
     }
 
+    /**
+     * Update an admin by its ID.
+     *
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param options {PbdAdminUpdateOptions} - The options for the adminUpdate
+     * @returns {Promise<AdminModel>} - The result of the adminUpdate
+     */
     async adminUpdate(options: PbdAdminUpdateOptions): Promise<AdminModel> {
+        if (!this.client.authStore.isAdmin) {
+            // deno-lint-ignore no-console
+            console.warn(
+                `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
+            );
+        }
         return await this.client.admins.update(options.id, {
             email: options.email,
             password: options.password,
@@ -1448,7 +1664,21 @@ export class Pbd {
         );
     }
 
+    /**
+     * Delete an admin by its ID.
+     *
+     * @throws {ClientResponseError} - If the request to pocketbase fails
+     * @param options {PbdAdminDeleteOptions} - The options for the adminDelete
+     * @returns {Promise<boolean>} - The result of the adminDelet
+     */
     async adminDelete(options: PbdAdminDeleteOptions): Promise<boolean> {
+        if (!this.client.authStore.isAdmin) {
+            // deno-lint-ignore no-console
+            console.warn(
+                `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
+            );
+        }
+
         return await this.client.admins.delete(options.id).then(
             (res: boolean) => {
                 return res;
@@ -1464,6 +1694,7 @@ export class Pbd {
 /**
  * Module exports
  */
+export { PbdExt };
 export type * from "$types";
 export type * from "pocketbase";
 export default Pbd;
