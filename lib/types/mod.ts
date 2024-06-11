@@ -329,15 +329,6 @@ export interface PbdCronExtOptions {
     backup_name: "auto" | string;
 }
 
-export interface PbdJWTExtOptions {
-    collectionName: string;
-    username_or_email: string;
-    password: string;
-    issuer: string;
-    subject: string;
-    properties: unknown;
-}
-
 /**
  * Pbd extensions object. This object is specific to the Pbd
  * extensions collection and it holds all the functions that can be
