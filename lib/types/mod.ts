@@ -515,7 +515,6 @@ export interface PbdExtBox {
          * @returns {string} - The JWT auth header
          */
         getJwtHeader: (Pbd: Pbd) => string;
-
     };
     /**
      * Extend PocketBase with Deno Cronjobs

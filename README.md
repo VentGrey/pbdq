@@ -108,11 +108,11 @@ header.
 #### Decode the JWT Header
 
 > [!IMPORTANT] This extension has been disabled. JSR disables deno.land/x/
-> packages support when uploading packages to the registry. Due to this
-> god damn limitation, the extension could not be built and published in JSR
-> since `djwt` is not yet supported. 
-```
+> packages support when uploading packages to the registry. Due to this god damn
+> limitation, the extension could not be built and published in JSR since `djwt`
+> is not yet supported.
 
+````
 ## Limitations 🔒
 
 - No easy way to test or publish test results from pipelines. This is because
@@ -189,7 +189,7 @@ const products = await pbd.getList<Product>({
     collectionName: "products",
     options: { sort: "-created" },
 });
-```
+````
 
 ### Admin Usage 🧑‍🚒
 
