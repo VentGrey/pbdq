@@ -107,24 +107,10 @@ header.
 
 #### Decode the JWT Header
 
-> [!IMPORTANT] This extension depends on `djwt` to decode the JWT header. This
-> means that, when the header is decoded, this funcion won't verify the digital
-> signature.
-
-This extension might be useful for debugging or applying custom routing logic
-based on the JWT header.
-
-```typescript
-import { Client }, PocketBase from "pocketbase";
-import { Pbd } from "@ventgrey/pbdq";
-import { PbdExt } from "@ventgrey/pbdq";
-
-const pb: Client = new PocketBase("http://127.0.0.1:8090"); 
-const pbd: Pbd = new Pbd({ client: pb });
-
-const json_string_token: string = PbdExt.auth.decodeJwtHeader(pbd);
-
-console.log(JSON.parse(json_string_token));
+> [!IMPORTANT] This extension has been disabled. JSR disables deno.land/x/
+> packages support when uploading packages to the registry. Due to this
+> god damn limitation, the extension could not be built and published in JSR
+> since `djwt` is not yet supported. 
 ```
 
 ## Limitations 🔒

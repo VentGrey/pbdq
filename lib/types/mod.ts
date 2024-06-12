@@ -516,17 +516,6 @@ export interface PbdExtBox {
          */
         getJwtHeader: (Pbd: Pbd) => string;
 
-        /**
-         * Decode the JWT header from the Pbd instance. This is useful for
-         * debugging or applying custom routing logic based on the JWT
-         * header.
-         *
-         * This depends on the `djwt` library.
-         *
-         * @param Pbd {Pbd} - The Pbd instance to extract the JWT header from.
-         * @returns {string} - Decoded JWT header
-         */
-        decodeJwtHeader: (Pbd: Pbd) => string;
     };
     /**
      * Extend PocketBase with Deno Cronjobs
