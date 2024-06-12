@@ -1,4 +1,4 @@
-import { decode } from "djwt";
+import { decode } from "https://deno.land/x/djwt@v3.0.2/mod.ts";
 import Pbd from "$pbdq";
 
 /**

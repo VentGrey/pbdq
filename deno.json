@@ -43,7 +43,6 @@
         "$pbdq": "./mod.ts",
         "$extensions": "./lib/extensions/mod.ts",
         "$types": "./lib/types/mod.ts",
-        "djwt": "https://deno.land/x/djwt@v3.0.2/mod.ts",
         "pocketbase": "npm:pocketbase@^0.21.3"
     },
     "tasks": {
