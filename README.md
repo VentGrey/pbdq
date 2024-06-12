@@ -22,7 +22,7 @@ any other environment. Be aware that I created this for my own purposes and will
 consider my own use cases. I'm open to patches that follow the Python zen:
 _Special cases are not special enough to break the rules_.
 
-> [!IMPORTANT]\
+> [!IMPORTANT]
 > If this library causes any bugs for you please report them here as an issue.
 > **DO NOT OPEN** pbdq bugs or support requests in the official PocketBase
 > repository.
