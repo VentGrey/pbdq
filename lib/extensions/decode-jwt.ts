@@ -1,4 +1,4 @@
-import { decode } from "$extensions/jwt";
+import { decode } from "djwt";
 import Pbd from "$pbdq";
 
 /**
