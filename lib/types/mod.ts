@@ -170,7 +170,7 @@ export interface PbdGetListOptions extends PbdQueryOptions {
      * @type {number}
      */
     page: number;
-    
+
     /**
      * The number of results per page.
      * @type {number}
@@ -182,7 +182,6 @@ export interface PbdGetListOptions extends PbdQueryOptions {
  * The options for the downloadBackup method.
  */
 export interface PbdDownloadBackupOptions {
-    
     /**
      * The name of the backup to download. If you saved in either
      * zip or other formats, you'll have to provide the extension
@@ -193,19 +192,17 @@ export interface PbdDownloadBackupOptions {
     /**
      * A generated token to access the backup.
      * {@linkcode Pbd.downloadBackup}
-    */
+     */
     token: string;
 }
 
-
 export interface PbdGetLogsOptions extends PbdQueryOptions {
-
-    /** 
+    /**
      * The page number.
      * @type {number}
-    */
+     */
     page: number;
-    
+
     /**
      * The number of results per page.
      * @type {number}

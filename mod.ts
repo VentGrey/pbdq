@@ -196,6 +196,15 @@ export class Pbd {
     }
 
     /**
+     * Clears the client auth state.
+     *
+     * @returns {void}
+     */
+    authClear(): void {
+        this.client.authStore.clear();
+    }
+
+    /**
      * Generates a file token for the provided client.
      *
      * @throws {ClientResponseError} - If the request to pocketbase fails
@@ -622,6 +631,8 @@ export class Pbd {
      * already have some type definitions, you can use them in the generics
      * provided in this function.
      *
+     * See {@linkcode PbdCreateOptions}
+     *
      * @throws {ClientResponseError} - If the request to pocketbase fails
      * @param options {PbdQueryOptions} - The options for the create
      * @param data {T} - The data to create
@@ -629,7 +640,8 @@ export class Pbd {
      */
     async create<T>(
         options: PbdQueryOptions,
-        data: { [key: string]: T } | FormData | undefined,
+        // deno-lint-ignore no-explicit-any
+        data: any,
     ): Promise<T> {
         return await this.client.collection(options.collectionName).create<T>(
             data,
@@ -662,7 +674,8 @@ export class Pbd {
     async update<T>(
         record_id: string,
         options: PbdQueryOptions,
-        data: { [key: string]: T } | FormData | undefined,
+        // deno-lint-ignore no-explicit-any
+        data: any,
     ): Promise<T> {
         return await this.client.collection(options.collectionName).update<T>(
             record_id,

@@ -1,6 +1,6 @@
 {
     "name": "@ventgrey/pbdq",
-    "version": "0.13.0",
+    "version": "0.14.0",
     "exports": "./mod.ts",
     "publish": {
         "include": [
@@ -48,7 +48,9 @@
     },
     "tasks": {
         "docs": "deno doc --html --name=pbdq --output=./docs ./mod.ts",
-        "test": "deno test -A --unsafely-ignore-certificate-errors"
+        "test": "deno test -A --unsafely-ignore-certificate-errors",
+        "bench-pbdq": "deno bench -A --unsafely-ignore-certificate-errors tests/test-pbdq.ts",
+        "bench-sdk": "deno bench -A --unsafely-ignore-certificate-errors tests/test-pocketbase-js-sdk.js"
     },
     "test": {
         "include": [

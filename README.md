@@ -1,4 +1,5 @@
 # pbdq - PocketBase Deno Qwrapper
+
 <img src="https://github.com/VentGrey/pbdq/assets/24773698/020830a0-3043-4947-9a01-a3de1166800a" height="250" width="250"/>
 
 > Qwrapper means Query Wrapper.
@@ -77,8 +78,6 @@ PbdExt.cron.setupBackup(pbd, {
 });
 ```
 
-#### Deno
-
 This will create a backup every day at 00:00. You can register multiple cron
 jobs if you want. All cronjobs registered with this extension will be named:
 `PocketBase Backup (Random-UUID)`.
@@ -86,6 +85,47 @@ jobs if you want. All cronjobs registered with this extension will be named:
 If you don't choose a backup name, the default will be a backup made with the
 current date and time: `auto-YYYY-MM-DD-HH-MM-SS.zip`, for example
 `auto-2022-01-01-00-00-00.zip`.
+
+#### Get Pocketbase emitted JWT Header
+
+```typescript
+import { Client }, PocketBase from "pocketbase";
+import { Pbd } from "@ventgrey/pbdq";
+import { PbdExt } from "@ventgrey/pbdq";
+
+const pb: Client = new PocketBase("http://127.0.0.1:8090");
+const pbd: Pbd = new Pbd({ client: pb });
+
+// If the current AuthStore is invalid, this will return an empty string.
+const token: string = PbdExt.auth.getJwtHeader(pbd);
+
+console.log(token);
+```
+
+If this is successful, the console statement will print the base64 encoded JWT
+header.
+
+#### Decode the JWT Header
+
+> [!IMPORTANT] This extension depends on `djwt` to decode the JWT header. This
+> means that, when the header is decoded, this funcion won't verify the digital
+> signature.
+
+This extension might be useful for debugging or applying custom routing logic
+based on the JWT header.
+
+```typescript
+import { Client }, PocketBase from "pocketbase";
+import { Pbd } from "@ventgrey/pbdq";
+import { PbdExt } from "@ventgrey/pbdq";
+
+const pb: Client = new PocketBase("http://127.0.0.1:8090"); 
+const pbd: Pbd = new Pbd({ client: pb });
+
+const json_string_token: string = PbdExt.auth.decodeJwtHeader(pbd);
+
+console.log(JSON.parse(json_string_token));
+```
 
 ## Limitations 🔒
 
