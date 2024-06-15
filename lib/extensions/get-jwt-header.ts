@@ -14,5 +14,5 @@ export const getJwtHeader = (pbd: Pbd): string => {
         return "";
     }
 
-    return `User: ${pbd.client.authStore.token}`;
+    return `Authorization: ${pbd.client.authStore.token}`;
 };

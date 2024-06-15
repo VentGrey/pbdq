@@ -12,6 +12,28 @@ export interface PbdOptions {
      * @type {Client}
      */
     client: Client;
+
+    /**
+     * If set to true, Pbd class methods that require authentication will
+     * throw an error if the client `authStore` is not valid.
+     *
+     * @type {boolean}
+     */
+    unauthorized_errors?: boolean;
+
+    /**
+     * If set to true, Pbd class methods that get any {@linkcode ClientResponseError} will
+     * return an empty array or an empty object instead of throwing an error.
+     *
+     * **Note:** This only applies to the methods that are async since it is possible
+     * to further handle errors with `.catch()`.
+     *
+     * PBD errors are not covered by this option. You'll still need to handle
+     * those yourself.
+     *
+     * @type {boolean}
+     */
+    return_empty_on_error?: boolean;
 }
 
 /**
@@ -28,6 +50,7 @@ export interface PbdQueryOptions {
     /**
      * Pocketbase client common options to send in almost all requests in
      * the SDK. See {@link Client}
+     * @type {import("pocketbase").CommonOptions}
      */
     options?: CommonOptions;
 
@@ -515,6 +538,14 @@ export interface PbdExtBox {
          * @returns {string} - The JWT auth header
          */
         getJwtHeader: (Pbd: Pbd) => string;
+
+        /**
+         * Setup the auth token in the headers of the request.
+         *
+         * @param pbd {Pbd} - The Pbd instance to use in this extension.
+         * @returns {void} - No result seems to be returned because mutation happens in pocketbase's side (?)
+         */
+        setupPBTokenAuth: (pbd: Pbd) => void;
     };
     /**
      * Extend PocketBase with Deno Cronjobs

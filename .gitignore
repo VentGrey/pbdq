@@ -131,3 +131,7 @@ dist
 
 docs/*
 !docs/.gitkeep
+
+# Because deno-lsp uses this folder for debugger configurations. Emacs lsp
+# needs it.
+.vscode

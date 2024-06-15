@@ -44,6 +44,9 @@ import {
 import { PbdExt } from "$extensions";
 
 /**
+ * Pbd - Core
+ * > The core wrapper for PBDQ
+ *
  * Pbd is a wrapper for the PocketBase JS SDK. This wrapper helps you simplify
  * the integration of PocketBase with server side TypeScript/JavaScript. Mainly
  * in Deno.
@@ -137,6 +140,30 @@ export class Pbd {
     client: Client;
 
     /**
+     * This feature, when set to true, will throw an error if you try to
+     * run any Pbd method that requires either user  or admin credentials.
+     *
+     * This error will be thrown if the {@linkcode client} authStore is not
+     * marked as valid.
+     *
+     * **Default:** `false`
+     *
+     * @type {boolean}
+     */
+    unauthorized_errors: boolean;
+
+    /**
+     * This feature, when set to true, will return an empty object or an
+     * empty array if the requested resource is not found or if there is an
+     * error in the request to PocketBase.
+     *
+     * **Default:** `false`
+     *
+     * @type {boolean}
+     */
+    return_empty_on_error: boolean;
+
+    /**
      * The constructor method for the Pbd wrapper. This takes in the options
      * passed in when initializing a new wrapper instance.
      *
@@ -145,6 +172,17 @@ export class Pbd {
      */
     constructor(options: PbdOptions) {
         this.client = options.client;
+
+        if (!options.unauthorized_errors) {
+            options.unauthorized_errors = false;
+        }
+
+        if (!options.return_empty_on_error) {
+            options.return_empty_on_error = false;
+        }
+
+        this.unauthorized_errors = options.unauthorized_errors;
+        this.return_empty_on_error = options.return_empty_on_error;
     }
 
     /**
@@ -205,24 +243,6 @@ export class Pbd {
     }
 
     /**
-     * Generates a file token for the provided client.
-     *
-     * @throws {ClientResponseError} - If the request to pocketbase fails
-     * @returns {Promise<string>} - The client's generated file token
-     */
-    async getFileToken(): Promise<string> {
-        return await this.client.files.getToken().then(
-            (res: string) => {
-                return res;
-            },
-        ).catch(
-            (err: ClientResponseError) => {
-                throw err;
-            },
-        );
-    }
-
-    /**
      * Refreshes the provided client's auth token. I think this queries a
      * certain encpoint in PocketBase. and depending on your authStore state
      * it may return a new token if the current one is expired. Or it may
@@ -262,6 +282,9 @@ export class Pbd {
                 },
             ).catch(
                 (err: ClientResponseError) => {
+                    if (this.return_empty_on_error) {
+                        return false;
+                    }
                     throw err;
                 },
             );
@@ -285,6 +308,9 @@ export class Pbd {
                 },
             ).catch(
                 (err: ClientResponseError) => {
+                    if (this.return_empty_on_error) {
+                        return false;
+                    }
                     throw err;
                 },
             );
@@ -309,6 +335,9 @@ export class Pbd {
                 },
             ).catch(
                 (err: ClientResponseError) => {
+                    if (this.return_empty_on_error) {
+                        return false;
+                    }
                     throw err;
                 },
             );
@@ -336,6 +365,9 @@ export class Pbd {
                 },
             ).catch(
                 (err: ClientResponseError) => {
+                    if (this.return_empty_on_error) {
+                        return false;
+                    }
                     throw err;
                 },
             );
@@ -352,12 +384,12 @@ export class Pbd {
     async requestEmailChange(
         options: PbdRequestEmailChangeOptions,
     ): Promise<boolean> {
-        if (!this.client.authStore.isValid) {
-            // deno-lint-ignore no-console
-            console.warn(
+        if (this.unauthorized_errors && !this.client.authStore.isValid) {
+            throw new Error(
                 `Attempted to make a protected operation. The current client user auth state is ${this.client.authStore.isValid}.`,
             );
         }
+
         return await this.client.collection(options.collectionName)
             .requestEmailChange(options.email)
             .then(
@@ -367,6 +399,9 @@ export class Pbd {
             )
             .catch(
                 (err: ClientResponseError) => {
+                    if (this.return_empty_on_error) {
+                        return false;
+                    }
                     throw err;
                 },
             );
@@ -393,6 +428,9 @@ export class Pbd {
                 },
             ).catch(
                 (err: ClientResponseError) => {
+                    if (this.return_empty_on_error) {
+                        return false;
+                    }
                     throw err;
                 },
             );
@@ -415,6 +453,9 @@ export class Pbd {
                 },
             ).catch(
                 (err: ClientResponseError) => {
+                    if (this.return_empty_on_error) {
+                        return new Object() as AuthMethodsList;
+                    }
                     throw err;
                 },
             );
@@ -430,12 +471,12 @@ export class Pbd {
     async listExternalAuth(
         options: PbdQueryOptions,
     ): Promise<ExternalAuthModel[]> {
-        if (!this.client.authStore.isValid) {
-            // deno-lint-ignore no-console
-            console.warn(
+        if (this.unauthorized_errors && !this.client.authStore.isValid) {
+            throw new Error(
                 `Attempted to make a protected operation. The current client user auth state is ${this.client.authStore.isValid}.`,
             );
         }
+
         return await this.client.collection(options.collectionName)
             .listExternalAuths(
                 this.client.authStore.model?.id,
@@ -445,6 +486,9 @@ export class Pbd {
                 },
             ).catch(
                 (err: ClientResponseError) => {
+                    if (this.return_empty_on_error) {
+                        return new Array(Object()) as ExternalAuthModel[];
+                    }
                     throw err;
                 },
             );
@@ -464,12 +508,12 @@ export class Pbd {
     async unlinkExternalAuth(
         options: PbdUnlinkExternalAuthOptions,
     ): Promise<void> {
-        if (!this.client.authStore.isValid) {
-            // deno-lint-ignore no-console
-            console.warn(
+        if (this.unauthorized_errors && !this.client.authStore.isValid) {
+            throw new Error(
                 `Attempted to make a protected operation. The current client user auth state is ${this.client.authStore.isValid}.`,
             );
         }
+
         await this.client.collection(options.collectionName).unlinkExternalAuth(
             this.client.authStore.model?.id,
             options.provider,
@@ -479,6 +523,9 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return false;
+                }
                 throw err;
             },
         );
@@ -528,6 +575,10 @@ export class Pbd {
         ).then(
             (res: ListResult<T>) => {
                 if (res.totalItems === 0) {
+                    if (this.return_empty_on_error) {
+                        return new Object() as ListResult<T>;
+                    }
+
                     throw new Error(
                         `No items found in ${options.collectionName}`,
                     );
@@ -537,6 +588,9 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return new Object() as ListResult<T>;
+                }
                 throw err;
             },
         );
@@ -559,6 +613,9 @@ export class Pbd {
         }).then(
             (res: T[]) => {
                 if (res.length === 0) {
+                    if (this.return_empty_on_error) {
+                        return new Array(Object()) as T[];
+                    }
                     throw new Error(
                         `No items found in collection ${options.collectionName}`,
                     );
@@ -592,6 +649,9 @@ export class Pbd {
                 },
             ).catch(
                 (err: ClientResponseError) => {
+                    if (this.return_empty_on_error) {
+                        return new Object() as T;
+                    }
                     throw err;
                 },
             );
@@ -620,6 +680,9 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return new Object() as T;
+                }
                 throw err;
             },
         );
@@ -654,6 +717,9 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return new Object() as T;
+                }
                 throw err;
             },
         );
@@ -689,6 +755,9 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return new Object() as T;
+                }
                 throw err;
             },
         );
@@ -718,6 +787,9 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return false;
+                }
                 throw err;
             },
         );
@@ -750,15 +822,19 @@ export class Pbd {
     }
 
     /**
-     * Wraps the getToken method from the pocketbase client.
+     * Wraps the getToken method from the pocketbase client. This is used
+     * to get tokens for protected files in the pocketbase server.
+     *
+     * > [!IMPORTANT]
+     * > This method requires the client to be authenticated.
+     * > either as user or admin.
      *
      * @throws {ClientResponseError} - If the request to pocketbase fails
      * @returns {Promise<string>} - The result of the getToken
      */
-    async getToken(): Promise<string> {
-        if (!this.client.authStore.isValid) {
-            // deno-lint-ignore no-console
-            console.warn(
+    async getFileToken(): Promise<string> {
+        if (this.unauthorized_errors && !this.client.authStore.isValid) {
+            throw new Error(
                 `Attempted to make a protected operation. The current client user auth state is ${this.client.authStore.isValid}.`,
             );
         }
@@ -768,6 +844,9 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return "";
+                }
                 throw err;
             },
         );
@@ -786,6 +865,9 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return new Object() as HealthCheckResponse;
+                }
                 throw err;
             },
         );
@@ -799,25 +881,26 @@ export class Pbd {
      * @returns {Promise<BackupFileInfo[]>} - The result of the listBackups
      */
     async listBackups(options: PbdQueryOptions): Promise<BackupFileInfo[]> {
-        if (!this.client.authStore.isAdmin) {
-            // deno-lint-ignore no-console
-            console.warn(
+        if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
+            throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
             );
         }
+
         return await this.client.backups.getFullList({
             ...options.options,
         }).then(
             (res: unknown | BackupFileInfo[]) => {
                 if (!Array.isArray(res)) {
-                    throw new Error(
-                        `No backups found in collection ${options.collectionName}`,
-                    );
+                    throw new Error(`The returned data is not an array.`);
                 }
                 return res;
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return new Array(Object()) as BackupFileInfo[];
+                }
                 throw err;
             },
         );
@@ -831,18 +914,21 @@ export class Pbd {
      * @returns {Promise<boolean>} - The result of the createBackup
      */
     async createBackup(backup_name: string): Promise<boolean> {
-        if (!this.client.authStore.isAdmin) {
-            // deno-lint-ignore no-console
-            console.warn(
+        if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
+            throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
             );
         }
+
         return await this.client.backups.create(backup_name).then(
             (res: boolean) => {
                 return res;
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return false;
+                }
                 throw err;
             },
         );
@@ -856,12 +942,12 @@ export class Pbd {
      * @returns {Promise<boolean>} - The result of the upload
      */
     async uploadBackup(blob: Blob): Promise<boolean> {
-        if (!this.client.authStore.isAdmin) {
-            // deno-lint-ignore no-console
-            console.warn(
+        if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
+            throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
             );
         }
+
         return await this.client.backups.upload(
             {
                 file: blob,
@@ -872,6 +958,9 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return false;
+                }
                 throw err;
             },
         );
@@ -885,18 +974,21 @@ export class Pbd {
      * @returns {Promise<boolean>} - The result of the delete
      */
     async deleteBackup(backup_name: string): Promise<boolean> {
-        if (!this.client.authStore.isAdmin) {
-            // deno-lint-ignore no-console
-            console.warn(
+        if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
+            throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
             );
         }
+
         return await this.client.backups.delete(backup_name).then(
             (res: boolean) => {
                 return res;
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return false;
+                }
                 throw err;
             },
         );
@@ -910,18 +1002,21 @@ export class Pbd {
      * @returns {Promise<boolean>}
      */
     async restoreBackup(backup_name: string): Promise<boolean> {
-        if (!this.client.authStore.isAdmin) {
-            // deno-lint-ignore no-console
-            console.warn(
+        if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
+            throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
             );
         }
+
         return await this.client.backups.restore(backup_name).then(
             (res: boolean) => {
                 return res;
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return false;
+                }
                 throw err;
             },
         );
@@ -935,12 +1030,12 @@ export class Pbd {
      * @returns {string}- The download url
      */
     downloadBackup(options: PbdDownloadBackupOptions): string {
-        if (!this.client.authStore.isAdmin) {
-            // deno-lint-ignore no-console
-            console.warn(
+        if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
+            throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
             );
         }
+
         return this.client.backups.getDownloadUrl(
             options.token,
             options.backup_name,
@@ -957,12 +1052,12 @@ export class Pbd {
     async getLogList(
         options: PbdGetLogsOptions,
     ): Promise<ListResult<LogModel>> {
-        if (!this.client.authStore.isAdmin) {
-            // deno-lint-ignore no-console
-            console.warn(
+        if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
+            throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
             );
         }
+
         return await this.client.logs.getList(options.page, options.perPage, {
             filter: options.filter,
         }).then(
@@ -971,6 +1066,9 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return new Object() as ListResult<LogModel>;
+                }
                 throw err;
             },
         );
@@ -984,9 +1082,8 @@ export class Pbd {
      * @returns {Promise<LogModel>} - The log
      */
     async getOneLog(log_id: string): Promise<LogModel> {
-        if (!this.client.authStore.isAdmin) {
-            // deno-lint-ignore no-console
-            console.warn(
+        if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
+            throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
             );
         }
@@ -996,6 +1093,9 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return new Object() as LogModel;
+                }
                 throw err;
             },
         );
@@ -1009,9 +1109,8 @@ export class Pbd {
      * @returns {Promise<HourlyStats[]>} - The stats
      */
     async getLogStats(filter: string): Promise<HourlyStats[]> {
-        if (!this.client.authStore.isAdmin) {
-            // deno-lint-ignore no-console
-            console.warn(
+        if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
+            throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
             );
         }
@@ -1023,6 +1122,9 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return new Object() as HourlyStats[];
+                }
                 throw err;
             },
         );
@@ -1035,9 +1137,8 @@ export class Pbd {
      * @returns {Promise<{[key: string]: unknown}>} - The settings
      */
     async getAllSettings(): Promise<{ [key: string]: unknown }> {
-        if (!this.client.authStore.isAdmin) {
-            // deno-lint-ignore no-console
-            console.warn(
+        if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
+            throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
             );
         }
@@ -1047,6 +1148,9 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return new Object() as { [key: string]: unknown };
+                }
                 throw err;
             },
         );
@@ -1062,18 +1166,21 @@ export class Pbd {
     async updateSettings(
         settings: { [key: string]: unknown },
     ): Promise<{ [key: string]: unknown }> {
-        if (!this.client.authStore.isAdmin) {
-            // deno-lint-ignore no-console
-            console.warn(
+        if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
+            throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
             );
         }
+
         return await this.client.settings.update(settings).then(
             (res: { [key: string]: unknown }) => {
                 return res;
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return new Object() as { [key: string]: unknown };
+                }
                 throw err;
             },
         );
@@ -1086,9 +1193,8 @@ export class Pbd {
      * @returns {Promise<boolean>} - True if the backups are working
      */
     async testS3(backups: "storage" | "backups"): Promise<boolean> {
-        if (!this.client.authStore.isAdmin) {
-            // deno-lint-ignore no-console
-            console.warn(
+        if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
+            throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
             );
         }
@@ -1098,6 +1204,9 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return false;
+                }
                 throw err;
             },
         );
@@ -1112,18 +1221,21 @@ export class Pbd {
      * @returns {Promise<boolean>} - True if the email was sent
      */
     async testEmail(email: string, template: string): Promise<boolean> {
-        if (!this.client.authStore.isAdmin) {
-            // deno-lint-ignore no-console
-            console.warn(
+        if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
+            throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
             );
         }
+
         return await this.client.settings.testEmail(email, template).then(
             (res: boolean) => {
                 return res;
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return false;
+                }
                 throw err;
             },
         );
@@ -1149,12 +1261,12 @@ export class Pbd {
         private_key: string;
         duration: number;
     }): Promise<appleClientSecret> {
-        if (!this.client.authStore.isAdmin) {
-            // deno-lint-ignore no-console
-            console.warn(
+        if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
+            throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
             );
         }
+
         return await this.client.settings.generateAppleClientSecret(
             options.client_id,
             options.team_id,
@@ -1171,6 +1283,9 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return new Object() as appleClientSecret;
+                }
                 throw err;
             },
         );
@@ -1187,12 +1302,12 @@ export class Pbd {
     async getCollectionList(
         options: PbdGetListOptions,
     ): Promise<ListResult<CollectionModel>> {
-        if (!this.client.authStore.isAdmin) {
-            // deno-lint-ignore no-console
-            console.warn(
+        if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
+            throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
             );
         }
+
         return await this.client.collections.getList(
             options.page,
             options.perPage,
@@ -1205,6 +1320,9 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return new Object() as ListResult<CollectionModel>;
+                }
                 throw err;
             },
         );
@@ -1220,12 +1338,12 @@ export class Pbd {
     async getCollectionFullList(
         options: PbdGetListOptions,
     ): Promise<CollectionModel[]> {
-        if (!this.client.authStore.isAdmin) {
-            // deno-lint-ignore no-console
-            console.warn(
+        if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
+            throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
             );
         }
+
         return await this.client.collections.getFullList({
             ...options.options,
         }).then(
@@ -1234,6 +1352,9 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return new Object() as CollectionModel[];
+                }
                 throw err;
             },
         );
@@ -1249,9 +1370,8 @@ export class Pbd {
     async getCollectionFirstListItem(
         options: PbdGetListOptions,
     ): Promise<CollectionModel | null> {
-        if (!this.client.authStore.isAdmin) {
-            // deno-lint-ignore no-console
-            console.warn(
+        if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
+            throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
             );
         }
@@ -1264,6 +1384,9 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return new Object() as CollectionModel | null;
+                }
                 throw err;
             },
         );
@@ -1277,18 +1400,21 @@ export class Pbd {
      * @returns {Promise<CollectionModel>} - The collection
      */
     async getOneCollection(id_or_name: string): Promise<CollectionModel> {
-        if (!this.client.authStore.isAdmin) {
-            // deno-lint-ignore no-console
-            console.warn(
+        if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
+            throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
             );
         }
+
         return await this.client.collections.getOne(id_or_name).then(
             (res: CollectionModel) => {
                 return res;
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return new Object() as CollectionModel;
+                }
                 throw err;
             },
         );
@@ -1304,9 +1430,8 @@ export class Pbd {
     async createCollection(
         options: PbdCreateCollectionOptions,
     ): Promise<CollectionModel> {
-        if (!this.client.authStore.isAdmin) {
-            // deno-lint-ignore no-console
-            console.warn(
+        if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
+            throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
             );
         }
@@ -1327,6 +1452,9 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return new Object() as CollectionModel;
+                }
                 throw err;
             },
         );
@@ -1342,12 +1470,12 @@ export class Pbd {
     async updateCollection(
         options: PbdCreateCollectionOptions,
     ): Promise<CollectionModel> {
-        if (!this.client.authStore.isAdmin) {
-            // deno-lint-ignore no-console
-            console.warn(
+        if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
+            throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
             );
         }
+
         return await this.client.collections.update(options.name, {
             name: options.name,
             type: options.type,
@@ -1362,6 +1490,9 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return new Object() as CollectionModel;
+                }
                 throw err;
             },
         );
@@ -1375,18 +1506,21 @@ export class Pbd {
      * @returns {Promise<boolean>} - The result of the delete
      */
     async deleteCollection(name_or_id: string): Promise<boolean> {
-        if (!this.client.authStore.isAdmin) {
-            // deno-lint-ignore no-console
-            console.warn(
+        if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
+            throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
             );
         }
+
         return await this.client.collections.delete(name_or_id).then(
             (res: boolean) => {
                 return res;
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return false;
+                }
                 throw err;
             },
         );
@@ -1404,12 +1538,12 @@ export class Pbd {
         collections: Array<CollectionModel>,
         deleteMissing: boolean,
     ): Promise<boolean> {
-        if (!this.client.authStore.isAdmin) {
-            // deno-lint-ignore no-console
-            console.warn(
+        if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
+            throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
             );
         }
+
         return await this.client.collections.import(collections, deleteMissing)
             .then(
                 (res: boolean) => {
@@ -1417,6 +1551,9 @@ export class Pbd {
                 },
             ).catch(
                 (err: ClientResponseError) => {
+                    if (this.return_empty_on_error) {
+                        return false;
+                    }
                     throw err;
                 },
             );
@@ -1442,6 +1579,9 @@ export class Pbd {
                 },
             ).catch(
                 (err: ClientResponseError) => {
+                    if (this.return_empty_on_error) {
+                        return new Object() as AdminAuthResponse;
+                    }
                     throw err;
                 },
             );
@@ -1454,18 +1594,21 @@ export class Pbd {
      * @returns {Promise<AdminAuthResponse>} - The result of the adminAuthRefresh
      */
     async adminAuthRefresh(): Promise<AdminAuthResponse> {
-        if (!this.client.authStore.isAdmin) {
-            // deno-lint-ignore no-console
-            console.warn(
+        if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
+            throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
             );
         }
+
         return await this.client.admins.authRefresh().then(
             (res: AdminAuthResponse) => {
                 return res;
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return new Object() as AdminAuthResponse;
+                }
                 throw err;
             },
         );
@@ -1488,6 +1631,9 @@ export class Pbd {
                 },
             ).catch(
                 (err: ClientResponseError) => {
+                    if (this.return_empty_on_error) {
+                        return false;
+                    }
                     throw err;
                 },
             );
@@ -1516,6 +1662,9 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return false;
+                }
                 throw err;
             },
         );
@@ -1531,12 +1680,12 @@ export class Pbd {
     async adminGetList(
         options: PbdAdminGetListOptions,
     ): Promise<ListResult<AdminModel>> {
-        if (!this.client.authStore.isAdmin) {
-            // deno-lint-ignore no-console
-            console.warn(
+        if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
+            throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
             );
         }
+
         return await this.client.admins.getList(options.page, options.perPage, {
             sort: options.sort,
             filter: options.filter,
@@ -1546,6 +1695,9 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return new Object() as ListResult<AdminModel>;
+                }
                 throw err;
             },
         );
@@ -1561,17 +1713,28 @@ export class Pbd {
     async adminGetFullList(
         options: PbdAdminGetListOptions,
     ): Promise<AdminModel[]> {
-        if (!this.client.authStore.isAdmin) {
-            // deno-lint-ignore no-console
-            console.warn(
+        if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
+            throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
             );
         }
+
         return await this.client.admins.getFullList({
             sort: options.sort,
             filter: options.filter,
             options: options.options,
-        });
+        }).then(
+            (res: AdminModel[]) => {
+                return res;
+            },
+        ).catch(
+            (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return new Object() as AdminModel[];
+                }
+                throw err;
+            },
+        );
     }
 
     /**
@@ -1584,14 +1747,25 @@ export class Pbd {
     async adminGetFirstListItem(
         options: PbdAdminGetListOptions,
     ): Promise<AdminModel> {
-        if (!this.client.authStore.isAdmin) {
-            // deno-lint-ignore no-console
-            console.warn(
+        if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
+            throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
             );
         }
+
         return await this.client.admins.getFirstListItem(
             options.filter ? options.filter : "",
+        ).then(
+            (res: AdminModel) => {
+                return res;
+            },
+        ).catch(
+            (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return new Object() as AdminModel;
+                }
+                throw err;
+            },
         );
     }
 
@@ -1603,18 +1777,21 @@ export class Pbd {
      * @returns {Promise<AdminModel>} - The result of the adminView
      */
     async adminView(options: PbdAdminViewOptions): Promise<AdminModel> {
-        if (!this.client.authStore.isAdmin) {
-            // deno-lint-ignore no-console
-            console.warn(
+        if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
+            throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
             );
         }
+
         return await this.client.admins.getOne(options.id).then(
             (res: AdminModel) => {
                 return res;
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return new Object() as AdminModel;
+                }
                 throw err;
             },
         );
@@ -1628,12 +1805,12 @@ export class Pbd {
      * @returns {Promise<AdminModel>} - The result of the adminCreate
      */
     async adminCreate(options: PbdAdminCreateOptions): Promise<AdminModel> {
-        if (!this.client.authStore.isAdmin) {
-            // deno-lint-ignore no-console
-            console.warn(
+        if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
+            throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
             );
         }
+
         return await this.client.admins.create({
             email: options.email,
             password: options.password,
@@ -1645,6 +1822,9 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return new Object() as AdminModel;
+                }
                 throw err;
             },
         );
@@ -1658,12 +1838,12 @@ export class Pbd {
      * @returns {Promise<AdminModel>} - The result of the adminUpdate
      */
     async adminUpdate(options: PbdAdminUpdateOptions): Promise<AdminModel> {
-        if (!this.client.authStore.isAdmin) {
-            // deno-lint-ignore no-console
-            console.warn(
+        if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
+            throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
             );
         }
+
         return await this.client.admins.update(options.id, {
             email: options.email,
             password: options.password,
@@ -1675,6 +1855,9 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return new Object() as AdminModel;
+                }
                 throw err;
             },
         );
@@ -1688,9 +1871,8 @@ export class Pbd {
      * @returns {Promise<boolean>} - The result of the adminDelet
      */
     async adminDelete(options: PbdAdminDeleteOptions): Promise<boolean> {
-        if (!this.client.authStore.isAdmin) {
-            // deno-lint-ignore no-console
-            console.warn(
+        if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
+            throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
             );
         }
@@ -1701,6 +1883,9 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_empty_on_error) {
+                    return false;
+                }
                 throw err;
             },
         );
