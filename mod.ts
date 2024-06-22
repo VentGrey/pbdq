@@ -187,16 +187,17 @@ export class Pbd {
 
     /**
      * Mutates the client state to be authenticated against the pocketbase
-     * server.
+     * server. If the Authentication is successful it redirects the pocketbase result to the client
      *
      * @param options {PbdAuthPasswordOptions} - The options for thr
      * authWithPassword pocketbase sdk method.
      * @throws {ClientResponseError} - If the request to pocketbase fails.
-     * @returns {Promise<void>} - Nothing. It only changes the client state
-     * to be authenticated.
+     * @returns {Promise<RecordAuthResponse<RecordModel>>} - The result of the authentication operatio
      */
-    async authWithPassword(options: PbdAuthPasswordOptions): Promise<void> {
-        await this.client.collection(options.collectionName)
+    async authWithPassword(
+        options: PbdAuthPasswordOptions,
+    ): Promise<RecordAuthResponse<RecordModel>> {
+        return await this.client.collection(options.collectionName)
             .authWithPassword(options.user_or_email, options.password)
             .then(
                 (res: RecordAuthResponse<RecordModel>) => {
