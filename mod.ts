@@ -1801,7 +1801,6 @@ export class Pbd {
 
         return await this.client.admins.getFullList({
             sort: options.sort,
-            filter: options.filter,
             options: options.options,
         }).then(
             (res: AdminModel[]) => {
