@@ -20,6 +20,7 @@ import {
     PbdAdminConfirmPasswordResetOptions,
     PbdAdminCreateOptions,
     PbdAdminDeleteOptions,
+    PbdAdminGetFullListOptions,
     PbdAdminGetListOptions,
     PbdAdminPasswordResetOptions,
     PbdAdminUpdateOptions,
@@ -29,15 +30,21 @@ import {
     PbdConfirmPasswordResetOptions,
     PbdConfirmVerificationOptions,
     PbdCreateCollectionOptions,
+    PbdDeleteCollectionOptions,
     PbdDownloadBackupOptions,
+    PbdGenerateAppleClientSecretOptions,
     PbdGetListOptions,
     PbdGetLogsOptions,
+    PbdGetOneCollectionOptions,
+    PbdImportCollectionsOptions,
     PbdOauthAuthOptions,
     PbdOptions,
     PbdQueryOptions,
     PbdRequestEmailChangeOptions,
     PbdRequestPasswordResetOptions,
     PbdRequestVerificationOptions,
+    PbdTestEmailOptions,
+    PbdTestS3Options,
     PbdUnlinkExternalAuthOptions,
 } from "$types";
 
@@ -153,15 +160,33 @@ export class Pbd {
     unauthorized_errors: boolean;
 
     /**
-     * This feature, when set to true, will return an empty object or an
-     * empty array if the requested resource is not found or if there is an
+     * This feature, when set to true, will return a null value
+     * if the requested resource is not found or if there is an
      * error in the request to PocketBase.
+     *
+     * This may benefit you if you are using this kind of pattern:
+     *
+     * ```typescript
+     * const result = await pbd.get({ collectionName: "cats", id: "123" });
+     *
+     * if (!result) {
+     *     console.log("Resource not found");
+     *     return;
+     * }
+     * ```
+     *
+     * This does not apply to functions that return `Promise<boolean>` like
+     * update, insert, or other PocketBase operation that return booleans.
+     * This it because it makes no sense to compare a resourse such as
+     * `boolean | null` when the boolean should be always true, as a
+     * false value is returned on error. To handle this, all boolean functions
+     * will return `false` if there is an error.
      *
      * **Default:** `false`
      *
      * @type {boolean}
      */
-    return_empty_on_error: boolean;
+    return_null_on_error: boolean;
 
     /**
      * The constructor method for the Pbd wrapper. This takes in the options
@@ -182,29 +207,33 @@ export class Pbd {
         }
 
         this.unauthorized_errors = options.unauthorized_errors;
-        this.return_empty_on_error = options.return_empty_on_error;
+        this.return_null_on_error = options.return_empty_on_error;
     }
 
     /**
      * Mutates the client state to be authenticated against the pocketbase
      * server. If the Authentication is successful it redirects the pocketbase result to the client
      *
-     * @param options {PbdAuthPasswordOptions} - The options for thr
+     * @param options {PbdAuthPasswordOptions} - The options for the
      * authWithPassword pocketbase sdk method.
      * @throws {ClientResponseError} - If the request to pocketbase fails.
-     * @returns {Promise<RecordAuthResponse<RecordModel>>} - The result of the authentication operatio
+     * @returns {Promise<RecordAuthResponse<RecordModel> | null>} - The result of the authWithPassword
+     * if return_null_on_error is set to true, it will return null if the request fails.
      */
     async authWithPassword(
         options: PbdAuthPasswordOptions,
-    ): Promise<RecordAuthResponse<RecordModel>> {
+    ): Promise<RecordAuthResponse<RecordModel> | null> {
         return await this.client.collection(options.collectionName)
-            .authWithPassword(options.user_or_email, options.password)
+            .authWithPassword(options.userOrEmail, options.password)
             .then(
                 (res: RecordAuthResponse<RecordModel>) => {
                     return res;
                 },
             ).catch(
                 (err: ClientResponseError) => {
+                    if (this.return_null_on_error) {
+                        return null;
+                    }
                     throw err;
                 },
             );
@@ -215,11 +244,12 @@ export class Pbd {
      *
      * @param options {PbdOauthAuthOptions} - The options for the authWithOAuth2 method
      * @throws {ClientResponseError} - If the request to pocketbase fails
-     * @returns {Promise<RecordAuthResponse<RecordModel>>} - The result of the authWithOAuth2
+     * @returns {Promise<RecordAuthResponse<RecordModel> | null>} - The result of the authWithOAuth2
+     * if return_null_on_error is set to true, it will return null if the request fails.
      */
     async authWithOAuth2(
         options: PbdOauthAuthOptions,
-    ): Promise<RecordAuthResponse<RecordModel>> {
+    ): Promise<RecordAuthResponse<RecordModel> | null> {
         return await this.client.collection(options.collectionName)
             .authWithOAuth2({
                 provider: options.provider,
@@ -229,6 +259,9 @@ export class Pbd {
                 },
             ).catch(
                 (err: ClientResponseError) => {
+                    if (this.return_null_on_error) {
+                        return null;
+                    }
                     throw err;
                 },
             );
@@ -251,18 +284,25 @@ export class Pbd {
      *
      * @throws {ClientResponseError} - If the request to pocketbase fails
      * @param options {PbdAuthPasswordOptions} - The options for the authRefresh method
-     * @returns {Promise<void>} - No result seems to be returned because mutation happens in pocketbase's side (?)
+     * @returns {Promise<RecordAuthResponse<RecordModel> | null>} - The result of the authRefresh
+     * if return_null_on_error is set to true, it will return null if the request fails.
      */
-    async authRefresh(options: PbdAuthPasswordOptions): Promise<void> {
-        await this.client.collection(options.collectionName).authRefresh().then(
-            (res: RecordAuthResponse<RecordModel>) => {
-                return res;
-            },
-        ).catch(
-            (err: ClientResponseError) => {
-                throw err;
-            },
-        );
+    async authRefresh(
+        options: PbdAuthPasswordOptions,
+    ): Promise<RecordAuthResponse<RecordModel> | null> {
+        return await this.client.collection(options.collectionName)
+            .authRefresh().then(
+                (res: RecordAuthResponse<RecordModel>) => {
+                    return res;
+                },
+            ).catch(
+                (err: ClientResponseError) => {
+                    if (this.return_null_on_error) {
+                        return null;
+                    }
+                    throw err;
+                },
+            );
     }
 
     /**
@@ -283,7 +323,7 @@ export class Pbd {
                 },
             ).catch(
                 (err: ClientResponseError) => {
-                    if (this.return_empty_on_error) {
+                    if (this.return_null_on_error) {
                         return false;
                     }
                     throw err;
@@ -309,7 +349,7 @@ export class Pbd {
                 },
             ).catch(
                 (err: ClientResponseError) => {
-                    if (this.return_empty_on_error) {
+                    if (this.return_null_on_error) {
                         return false;
                     }
                     throw err;
@@ -336,7 +376,7 @@ export class Pbd {
                 },
             ).catch(
                 (err: ClientResponseError) => {
-                    if (this.return_empty_on_error) {
+                    if (this.return_null_on_error) {
                         return false;
                     }
                     throw err;
@@ -359,14 +399,14 @@ export class Pbd {
             .confirmPasswordReset(
                 options.token,
                 options.password,
-                options.password_confirm,
+                options.passwordConfirm,
             ).then(
                 (res: boolean) => {
                     return res;
                 },
             ).catch(
                 (err: ClientResponseError) => {
-                    if (this.return_empty_on_error) {
+                    if (this.return_null_on_error) {
                         return false;
                     }
                     throw err;
@@ -400,7 +440,7 @@ export class Pbd {
             )
             .catch(
                 (err: ClientResponseError) => {
-                    if (this.return_empty_on_error) {
+                    if (this.return_null_on_error) {
                         return false;
                     }
                     throw err;
@@ -429,7 +469,7 @@ export class Pbd {
                 },
             ).catch(
                 (err: ClientResponseError) => {
-                    if (this.return_empty_on_error) {
+                    if (this.return_null_on_error) {
                         return false;
                     }
                     throw err;
@@ -442,9 +482,12 @@ export class Pbd {
      *
      * @param options {PbdQueryOptions} - The options for the listAuthMethods method
      * @throws {ClientResponseError} - If the request to pocketbase fails
-     * @returns {Promise<AuthMethodsList>} - The list of auth methods
+     * @returns {Promise<AuthMethodsList | null>} - The list of auth methods, or null if return_null_on_error is
+     * set to true
      */
-    async listAuthMethods(options: PbdQueryOptions): Promise<AuthMethodsList> {
+    async listAuthMethods(
+        options: PbdQueryOptions,
+    ): Promise<AuthMethodsList | null> {
         return await this.client.collection(options.collectionName)
             .listAuthMethods({
                 ...options.options,
@@ -454,8 +497,8 @@ export class Pbd {
                 },
             ).catch(
                 (err: ClientResponseError) => {
-                    if (this.return_empty_on_error) {
-                        return new Object() as AuthMethodsList;
+                    if (this.return_null_on_error) {
+                        return null;
                     }
                     throw err;
                 },
@@ -467,11 +510,12 @@ export class Pbd {
      *
      * @throws {ClientResponseError} - If the request to pocketbase fails
      * @param options {PbdQueryOptions} - The options for the listExternalAuths method
-     * @returns {Promise<ExternalAuthModel[]>} - The list of external auth
+     * @returns {Promise<ExternalAuthModel[] | null>} - The list of external auth, or null if return_null_on_error
+     * is set to true
      */
     async listExternalAuth(
         options: PbdQueryOptions,
-    ): Promise<ExternalAuthModel[]> {
+    ): Promise<ExternalAuthModel[] | null> {
         if (this.unauthorized_errors && !this.client.authStore.isValid) {
             throw new Error(
                 `Attempted to make a protected operation. The current client user auth state is ${this.client.authStore.isValid}.`,
@@ -487,8 +531,8 @@ export class Pbd {
                 },
             ).catch(
                 (err: ClientResponseError) => {
-                    if (this.return_empty_on_error) {
-                        return new Array(Object()) as ExternalAuthModel[];
+                    if (this.return_null_on_error) {
+                        return null;
                     }
                     throw err;
                 },
@@ -504,32 +548,33 @@ export class Pbd {
      * reproducibility.
      *
      * @param options {PbdUnlinkExternalAuthOptions} - The options for the unlinkExternalAuth
-     * @returns {Promise<void>} - Mutates the client state to unlink the external auth.
+     * @returns {Promise<boolean>} - True if the unlink was successful
      */
     async unlinkExternalAuth(
         options: PbdUnlinkExternalAuthOptions,
-    ): Promise<void> {
+    ): Promise<boolean> {
         if (this.unauthorized_errors && !this.client.authStore.isValid) {
             throw new Error(
                 `Attempted to make a protected operation. The current client user auth state is ${this.client.authStore.isValid}.`,
             );
         }
 
-        await this.client.collection(options.collectionName).unlinkExternalAuth(
-            this.client.authStore.model?.id,
-            options.provider,
-        ).then(
-            (res: boolean) => {
-                return res;
-            },
-        ).catch(
-            (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
-                    return false;
-                }
-                throw err;
-            },
-        );
+        return await this.client.collection(options.collectionName)
+            .unlinkExternalAuth(
+                this.client.authStore.model?.id,
+                options.provider,
+            ).then(
+                (res: boolean) => {
+                    return res;
+                },
+            ).catch(
+                (err: ClientResponseError) => {
+                    if (this.return_null_on_error) {
+                        return false;
+                    }
+                    throw err;
+                },
+            );
     }
 
     /**
@@ -539,7 +584,8 @@ export class Pbd {
      * provided in this function.
      *
      * @param {PbdGetListOptions} options - The options for the getList
-     * @returns {Promise<ListResult<T>>} - The result of the getList
+     * @returns {Promise<ListResult<T> | null>} - The result of the getList, or null if return_null_on_error
+     * is set to true
      *
      * @example Get a list of "products" from the "products" collection.
      * ```typescript
@@ -568,7 +614,9 @@ export class Pbd {
      *
      * ```
      */
-    async getList<T>(options: PbdGetListOptions): Promise<ListResult<T>> {
+    async getList<T>(
+        options: PbdGetListOptions,
+    ): Promise<ListResult<T> | null> {
         return await this.client.collection(options.collectionName).getList<T>(
             options.page,
             options.perPage,
@@ -576,8 +624,8 @@ export class Pbd {
         ).then(
             (res: ListResult<T>) => {
                 if (res.totalItems === 0) {
-                    if (this.return_empty_on_error) {
-                        return new Object() as ListResult<T>;
+                    if (this.return_null_on_error) {
+                        return null;
                     }
 
                     throw new Error(
@@ -589,8 +637,8 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
-                    return new Object() as ListResult<T>;
+                if (this.return_null_on_error) {
+                    return null;
                 }
                 throw err;
             },
@@ -604,9 +652,10 @@ export class Pbd {
      * provided in this function.
      *
      * @param options {PbdQueryOptions} - The options for the getFullList pocketbase method
-     * @returns {Promise<T[]>} - The result of the getFullList pocketbase method
+     * @returns {Promise<T[] | null>} - The result of the getFullList pocketbase method,
+     * or null if return_null_on_error is set to true
      */
-    async getFullList<T>(options: PbdQueryOptions): Promise<T[]> {
+    async getFullList<T>(options: PbdQueryOptions): Promise<T[] | null> {
         return await this.client.collection(options.collectionName).getFullList<
             T
         >({
@@ -614,8 +663,8 @@ export class Pbd {
         }).then(
             (res: T[]) => {
                 if (res.length === 0) {
-                    if (this.return_empty_on_error) {
-                        return new Array(Object()) as T[];
+                    if (this.return_null_on_error) {
+                        return null;
                     }
                     throw new Error(
                         `No items found in collection ${options.collectionName}`,
@@ -626,6 +675,9 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
+                if (this.return_null_on_error) {
+                    return null;
+                }
                 throw err;
             },
         );
@@ -638,9 +690,10 @@ export class Pbd {
      * provided in this function.
      *
      * @param options {PbdQueryOptions} - The options for the getFirstListItem
-     * @returns {Promise<T>} - The result of the getFirstListItem
+     * @returns {Promise<T | null>} - The result of the getFirstListItem
+     * or null if return_null_on_error is set to true
      */
-    async getFirstListItem<T>(options: PbdQueryOptions): Promise<T> {
+    async getFirstListItem<T>(options: PbdQueryOptions): Promise<T | null> {
         return await this.client.collection(options.collectionName)
             .getFirstListItem<T>(options.filter?.toString() as string, {
                 ...options.options,
@@ -650,8 +703,8 @@ export class Pbd {
                 },
             ).catch(
                 (err: ClientResponseError) => {
-                    if (this.return_empty_on_error) {
-                        return new Object() as T;
+                    if (this.return_null_on_error) {
+                        return null;
                     }
                     throw err;
                 },
@@ -667,9 +720,13 @@ export class Pbd {
      * @throws {ClientResponseError} - If the request to pocketbase fails
      * @param record_id {string} - The id of the record
      * @param options {PbdQueryOptions} - The options for the getOne
-     * @returns {Promise<T>} - The result of the getOne
+     * @returns {Promise<T | null>} - The result of the getOne or null if
+     * return_null_on_error is set to true
      */
-    async getOne<T>(record_id: string, options: PbdQueryOptions): Promise<T> {
+    async getOne<T>(
+        record_id: string,
+        options: PbdQueryOptions,
+    ): Promise<T | null> {
         return await this.client.collection(options.collectionName).getOne<T>(
             record_id,
             {
@@ -681,8 +738,8 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
-                    return new Object() as T;
+                if (this.return_null_on_error) {
+                    return null;
                 }
                 throw err;
             },
@@ -700,13 +757,14 @@ export class Pbd {
      * @throws {ClientResponseError} - If the request to pocketbase fails
      * @param options {PbdQueryOptions} - The options for the create
      * @param data {T} - The data to create
-     * @returns {Promise<T>} - The result of the create
+     * @returns {Promise<T | null>} - The result of the create, or null if
+     * return_null_on_error is set to true
      */
     async create<T>(
         options: PbdQueryOptions,
         // deno-lint-ignore no-explicit-any
         data: any,
-    ): Promise<T> {
+    ): Promise<T | null> {
         return await this.client.collection(options.collectionName).create<T>(
             data,
             {
@@ -718,8 +776,8 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
-                    return new Object() as T;
+                if (this.return_null_on_error) {
+                    return null;
                 }
                 throw err;
             },
@@ -736,14 +794,15 @@ export class Pbd {
      * @param record_id {string} - The id of the record
      * @param options {PbdQueryOptions} - The options for the update
      * @param data {T} - The data to update
-     * @returns {Promise<T>} - The result of the update
+     * @returns {Promise<T | null>} - The result of the update, or null if
+     * return_null_on_error is set to true
      */
     async update<T>(
         record_id: string,
         options: PbdQueryOptions,
         // deno-lint-ignore no-explicit-any
         data: any,
-    ): Promise<T> {
+    ): Promise<T | null> {
         return await this.client.collection(options.collectionName).update<T>(
             record_id,
             data,
@@ -756,8 +815,8 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
-                    return new Object() as T;
+                if (this.return_null_on_error) {
+                    return null;
                 }
                 throw err;
             },
@@ -788,7 +847,7 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
+                if (this.return_null_on_error) {
                     return false;
                 }
                 throw err;
@@ -831,9 +890,10 @@ export class Pbd {
      * > either as user or admin.
      *
      * @throws {ClientResponseError} - If the request to pocketbase fails
-     * @returns {Promise<string>} - The result of the getToken
+     * @returns {Promise<string | null>} - The result of the getToken, or null if
+     * return_null_on_error is set to true
      */
-    async getFileToken(): Promise<string> {
+    async getFileToken(): Promise<string | null> {
         if (this.unauthorized_errors && !this.client.authStore.isValid) {
             throw new Error(
                 `Attempted to make a protected operation. The current client user auth state is ${this.client.authStore.isValid}.`,
@@ -845,8 +905,8 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
-                    return "";
+                if (this.return_null_on_error) {
+                    return null;
                 }
                 throw err;
             },
@@ -854,20 +914,21 @@ export class Pbd {
     }
 
     /**
-     * Wraps the getHealth method from the pocketbase client.
+     * Wraps the getHealth method from the pocketbase client. This
      *
      * @throws {ClientResponseError} - If the request to pocketbase fails
-     * @returns {Promise<HealthCheckResponse>} - The result of the getHealth
+     * @returns {Promise<HealthCheckResponse | null>} - The result of the getHealth, or null if
+     * return_null_on_error is set to true
      */
-    async getHealth(): Promise<HealthCheckResponse> {
+    async getHealth(): Promise<HealthCheckResponse | null> {
         return await this.client.health.check().then(
             (res: HealthCheckResponse) => {
                 return res;
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
-                    return new Object() as HealthCheckResponse;
+                if (this.return_null_on_error) {
+                    return null;
                 }
                 throw err;
             },
@@ -879,9 +940,12 @@ export class Pbd {
      *
      * @throws {ClientResponseError} - If the request to pocketbase fails
      * @param options {PbdQueryOptions} - The options for the listBackups
-     * @returns {Promise<BackupFileInfo[]>} - The result of the listBackups
+     * @returns {Promise<BackupFileInfo[] | null>} - The result of the listBackups,
+     * or null if return_null_on_error is set to true
      */
-    async listBackups(options: PbdQueryOptions): Promise<BackupFileInfo[]> {
+    async listBackups(
+        options: PbdQueryOptions,
+    ): Promise<BackupFileInfo[] | null> {
         if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
             throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
@@ -899,8 +963,8 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
-                    return new Array(Object()) as BackupFileInfo[];
+                if (this.return_null_on_error) {
+                    return null;
                 }
                 throw err;
             },
@@ -927,7 +991,7 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
+                if (this.return_null_on_error) {
                     return false;
                 }
                 throw err;
@@ -959,7 +1023,7 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
+                if (this.return_null_on_error) {
                     return false;
                 }
                 throw err;
@@ -987,7 +1051,7 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
+                if (this.return_null_on_error) {
                     return false;
                 }
                 throw err;
@@ -1015,7 +1079,7 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
+                if (this.return_null_on_error) {
                     return false;
                 }
                 throw err;
@@ -1039,20 +1103,23 @@ export class Pbd {
 
         return this.client.backups.getDownloadUrl(
             options.token,
-            options.backup_name,
+            options.backupName,
         );
     }
 
     /**
      * Get a list of logs from the PocketBase.
      *
+     * - A filter string is required to use this function
+     *
      * @throws {ClientResponseError} - If the request to pocketbase fails
      * @param options {PbdGetLogsOptions} - The options for the getLogList method
-     * @returns {Promise<ListResult<LogModel>>} - The list of logs
+     * @returns {Promise<ListResult<LogModel> | null>} - The list of logs, or
+     * null if return_null_on_error is set to true
      */
     async getLogList(
         options: PbdGetLogsOptions,
-    ): Promise<ListResult<LogModel>> {
+    ): Promise<ListResult<LogModel> | null> {
         if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
             throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
@@ -1067,8 +1134,8 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
-                    return new Object() as ListResult<LogModel>;
+                if (this.return_null_on_error) {
+                    return null;
                 }
                 throw err;
             },
@@ -1079,10 +1146,11 @@ export class Pbd {
      * Get a single log entry from the PocketBase.
      *
      * @throws {ClientResponseError} - If the request to pocketbase fails
-     * @param log_id {string} - The id of the log
-     * @returns {Promise<LogModel>} - The log
+     * @param log_id {string} - The id of the log to get
+     * @returns {Promise<LogModel | null>} - The log object or null if
+     * return_null_on_error is set to true
      */
-    async getOneLog(log_id: string): Promise<LogModel> {
+    async getOneLog(log_id: string): Promise<LogModel | null> {
         if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
             throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
@@ -1094,8 +1162,8 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
-                    return new Object() as LogModel;
+                if (this.return_null_on_error) {
+                    return null;
                 }
                 throw err;
             },
@@ -1107,9 +1175,10 @@ export class Pbd {
      *
      * @throws {ClientResponseError} - If the request to pocketbase fails
      * @param filter {string} - The filter to use
-     * @returns {Promise<HourlyStats[]>} - The stats
+     * @returns {Promise<HourlyStats[] | null>} - The stats from Pocketbase or
+     * null if return_null_on_error is set to true
      */
-    async getLogStats(filter: string): Promise<HourlyStats[]> {
+    async getLogStats(filter: string): Promise<HourlyStats[] | null> {
         if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
             throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
@@ -1123,8 +1192,8 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
-                    return new Object() as HourlyStats[];
+                if (this.return_null_on_error) {
+                    return null;
                 }
                 throw err;
             },
@@ -1132,12 +1201,13 @@ export class Pbd {
     }
 
     /**
-     * Get all the settings from the PocketBase.
+     * Get all current settings from the PocketBase.
      *
      * @throws {ClientResponseError} - If the request to pocketbase fails
-     * @returns {Promise<{[key: string]: unknown}>} - The settings
+     * @returns {Promise<{[key: string]: unknown}> | null} - The settings that
+     * Pocketbase uses or null if return_null_on_error is set to true
      */
-    async getAllSettings(): Promise<{ [key: string]: unknown }> {
+    async getAllSettings(): Promise<{ [key: string]: unknown } | null> {
         if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
             throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
@@ -1149,8 +1219,8 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
-                    return new Object() as { [key: string]: unknown };
+                if (this.return_null_on_error) {
+                    return null;
                 }
                 throw err;
             },
@@ -1162,11 +1232,12 @@ export class Pbd {
      *
      * @throws {ClientResponseError} - If the request to pocketbase fails
      * @param settings {[key: string]: unknown} - The settings to update
-     * @returns {Promise<{[key: string]: unknown}>} - The updated settings
+     * @returns {Promise<{[key: string]: unknown} | null>} - The updated settings or
+     * null if return_null_on_error is set to true
      */
     async updateSettings(
         settings: { [key: string]: unknown },
-    ): Promise<{ [key: string]: unknown }> {
+    ): Promise<{ [key: string]: unknown } | null> {
         if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
             throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
@@ -1179,8 +1250,8 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
-                    return new Object() as { [key: string]: unknown };
+                if (this.return_null_on_error) {
+                    return null;
                 }
                 throw err;
             },
@@ -1190,22 +1261,24 @@ export class Pbd {
     /**
      * Test the configured S3 settings
      *
-     * @param backups {("storage" | "backups")} - The backups to test
-     * @returns {Promise<boolean>} - True if the backups are working
+     * @param options {PbdTestS3Options} - The options for the test S3
+     * @returns {Promise<boolean>} - True if the backups are working, false if
+     * an error occurred or if backups are not configured
      */
-    async testS3(backups: "storage" | "backups"): Promise<boolean> {
+    async testS3(options: PbdTestS3Options): Promise<boolean> {
         if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
             throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
             );
         }
-        return await this.client.settings.testS3(backups).then(
+
+        return await this.client.settings.testS3(options.backups).then(
             (res: boolean) => {
                 return res;
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
+                if (this.return_null_on_error) {
                     return false;
                 }
                 throw err;
@@ -1216,25 +1289,27 @@ export class Pbd {
     /**
      * Sends a test email via PocketBase with configured SMTP settings.
      *
-     * @param email {string} - The email of the user
-     * @param template {string} - The template to use
+     * @param options {PbdTestEmailOptions} - The options for the test email
      * @throws {ClientResponseError} - If the request to pocketbase fails
      * @returns {Promise<boolean>} - True if the email was sent
      */
-    async testEmail(email: string, template: string): Promise<boolean> {
+    async testEmail(options: PbdTestEmailOptions): Promise<boolean> {
         if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
             throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
             );
         }
 
-        return await this.client.settings.testEmail(email, template).then(
+        return await this.client.settings.testEmail(
+            options.email,
+            options.template,
+        ).then(
             (res: boolean) => {
                 return res;
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
+                if (this.return_null_on_error) {
                     return false;
                 }
                 throw err;
@@ -1246,22 +1321,14 @@ export class Pbd {
      * Generate Apple client secret for the current user
      *
      * @throws {ClientResponseError} - If the request to pocketbase fails
-     * @param options {
-     *  client_id: string;
-     *  team_id: string;
-     *  key_id: string;
-     *  private_key: string;
-     *  duration: number;
-     * } - Apple client secret
-     * @returns
+     * @param options {PbdGenerateAppleClientSecretOptions} - The options for the
+     * generateAppleClientSecret.
+     * @returns {Promise<appleClientSecret | null>} - The apple client secret or null
+     * if return_null_on_error is set to true
      */
-    async generateAppleClientSecret(options: {
-        client_id: string;
-        team_id: string;
-        key_id: string;
-        private_key: string;
-        duration: number;
-    }): Promise<appleClientSecret> {
+    async generateAppleClientSecret(
+        options: PbdGenerateAppleClientSecretOptions,
+    ): Promise<appleClientSecret | null> {
         if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
             throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
@@ -1284,8 +1351,8 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
-                    return new Object() as appleClientSecret;
+                if (this.return_null_on_error) {
+                    return null;
                 }
                 throw err;
             },
@@ -1295,14 +1362,14 @@ export class Pbd {
     /**
      * Get a paginated list of the current collections from the PocketBase.
      *
-     * @async
      * @throws {ClientResponseError} - If the request to pocketbase fails
      * @param options {PbdGetListOptions} - The options for the getFullCollectionsList
-     * @returns {Promise<ListResult<CollectionModel>>} - The list of collections
+     * @returns {Promise<ListResult<CollectionModel> | null>} - The list of collections
+     * or null if return_null_on_error is set to true
      */
     async getCollectionList(
         options: PbdGetListOptions,
-    ): Promise<ListResult<CollectionModel>> {
+    ): Promise<ListResult<CollectionModel> | null> {
         if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
             throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
@@ -1321,8 +1388,8 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
-                    return new Object() as ListResult<CollectionModel>;
+                if (this.return_null_on_error) {
+                    return null;
                 }
                 throw err;
             },
@@ -1334,11 +1401,12 @@ export class Pbd {
      *
      * @throws {ClientResponseError} - If the request to pocketbase fails
      * @param options {PbdGetListOptions} - The options for the getFullCollectionsList
-     * @returns {Promise<CollectionModel[]>} - The list of collections
+     * @returns {Promise<CollectionModel[] | null>} - The list of collections
+     * or null if return_null_on_error is set to true
      */
     async getCollectionFullList(
         options: PbdGetListOptions,
-    ): Promise<CollectionModel[]> {
+    ): Promise<CollectionModel[] | null> {
         if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
             throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
@@ -1353,8 +1421,8 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
-                    return new Object() as CollectionModel[];
+                if (this.return_null_on_error) {
+                    return null;
                 }
                 throw err;
             },
@@ -1366,7 +1434,8 @@ export class Pbd {
      *
      * @throws {ClientResponseError} - If the request to pocketbase fails
      * @param options {PbdGetListOptions} - The options for the getFullCollectionsList
-     * @returns {Promise<CollectionModel | null>} - The list of collections
+     * @returns {Promise<CollectionModel | null>} - The list of collections or null
+     * if return_null_on_error is set to true
      */
     async getCollectionFirstListItem(
         options: PbdGetListOptions,
@@ -1385,8 +1454,8 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
-                    return new Object() as CollectionModel | null;
+                if (this.return_null_on_error) {
+                    return null;
                 }
                 throw err;
             },
@@ -1397,24 +1466,27 @@ export class Pbd {
      * Get a specific collection from the PocketBase.
      *
      * @throws {ClientResponseError} - If the request to pocketbase fails
-     * @param id_or_name {string} - The id or name of the collection
-     * @returns {Promise<CollectionModel>} - The collection
+     * @param options {PbdGetOneCollectionOptions} - The options for the getFullCollectionsList
+     * @returns {Promise<CollectionModel | null>} - The collection that was found or null
+     * if return_null_on_error is set
      */
-    async getOneCollection(id_or_name: string): Promise<CollectionModel> {
+    async getOneCollection(
+        options: PbdGetOneCollectionOptions,
+    ): Promise<CollectionModel | null> {
         if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
             throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
             );
         }
 
-        return await this.client.collections.getOne(id_or_name).then(
+        return await this.client.collections.getOne(options.nameOrId).then(
             (res: CollectionModel) => {
                 return res;
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
-                    return new Object() as CollectionModel;
+                if (this.return_null_on_error) {
+                    return null;
                 }
                 throw err;
             },
@@ -1426,11 +1498,12 @@ export class Pbd {
      *
      * @throws {ClientResponseError} - If the request to pocketbase fails
      * @param options {PbdCreateCollectionOptions} - The options for the getFullCollectionsList
-     * @returns {Promise<CollectionModel>} - The collection that was created
+     * @returns {Promise<CollectionModel | null>} - The collection that was created
+     * or null if return_null_on_error is set
      */
     async createCollection(
         options: PbdCreateCollectionOptions,
-    ): Promise<CollectionModel> {
+    ): Promise<CollectionModel | null> {
         if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
             throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
@@ -1453,8 +1526,8 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
-                    return new Object() as CollectionModel;
+                if (this.return_null_on_error) {
+                    return null;
                 }
                 throw err;
             },
@@ -1466,11 +1539,12 @@ export class Pbd {
      *
      * @throws {ClientResponseError} - If the request to pocketbase fails
      * @param options {PbdCreateCollectionOptions} - The options for the getFullCollectionsList
-     * @returns {Promise<CollectionModel>} - The collection that was created
+     * @returns {Promise<CollectionModel | null>} - The collection that was created
+     * or null if return_null_on_error is set
      */
     async updateCollection(
         options: PbdCreateCollectionOptions,
-    ): Promise<CollectionModel> {
+    ): Promise<CollectionModel | null> {
         if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
             throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
@@ -1491,8 +1565,8 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
-                    return new Object() as CollectionModel;
+                if (this.return_null_on_error) {
+                    return null;
                 }
                 throw err;
             },
@@ -1503,23 +1577,25 @@ export class Pbd {
      * Delete an existing collection in the PocketBase.
      *
      * @throws {ClientResponseError} - If the request to pocketbase fails
-     * @param name_or_id {string} - The name or id of the collection
+     * @param options {PbdDeleteCollectionOptions} - The options for the getFullCollectionsList
      * @returns {Promise<boolean>} - The result of the delete
      */
-    async deleteCollection(name_or_id: string): Promise<boolean> {
+    async deleteCollection(
+        options: PbdDeleteCollectionOptions,
+    ): Promise<boolean> {
         if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
             throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
             );
         }
 
-        return await this.client.collections.delete(name_or_id).then(
+        return await this.client.collections.delete(options.nameOrId).then(
             (res: boolean) => {
                 return res;
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
+                if (this.return_null_on_error) {
                     return false;
                 }
                 throw err;
@@ -1531,13 +1607,11 @@ export class Pbd {
      * Import collections into the PocketBase.
      *
      * @throws {ClientResponseError} - If the request to pocketbase fails
-     * @param collections {Array<CollectionModel>} - The collections to import into pocketbase
-     * @param deleteMissing {boolean} - Whether to delete missing collections
+     * @param options {PbdImportCollectionsOptions} - The options for the importCollections
      * @returns {Promise<boolean>} - The result of the import
      */
     async importCollections(
-        collections: Array<CollectionModel>,
-        deleteMissing: boolean,
+        options: PbdImportCollectionsOptions,
     ): Promise<boolean> {
         if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
             throw new Error(
@@ -1545,14 +1619,17 @@ export class Pbd {
             );
         }
 
-        return await this.client.collections.import(collections, deleteMissing)
+        return await this.client.collections.import(
+            options.collections,
+            options.deleteMissing,
+        )
             .then(
                 (res: boolean) => {
                     return res;
                 },
             ).catch(
                 (err: ClientResponseError) => {
-                    if (this.return_empty_on_error) {
+                    if (this.return_null_on_error) {
                         return false;
                     }
                     throw err;
@@ -1565,11 +1642,12 @@ export class Pbd {
      *
      * @throws {ClientResponseError} - If the request to pocketbase fails
      * @param options {PbdAdminAuthWithPasswordOptions} - The options for the adminAuthWithPassword
-     * @returns {Promise<AdminAuthResponse>} - The result of the adminAuthWithPassword
+     * @returns {Promise<AdminAuthResponse | null>} - The result of the adminAuthWithPassword
+     * or null if return_null_on_error is set to true
      */
     async adminAuthWithPassword(
         options: PbdAdminAuthWithPasswordOptions,
-    ): Promise<AdminAuthResponse> {
+    ): Promise<AdminAuthResponse | null> {
         return await this.client.admins.authWithPassword(
             options.email,
             options.password,
@@ -1580,8 +1658,8 @@ export class Pbd {
                 },
             ).catch(
                 (err: ClientResponseError) => {
-                    if (this.return_empty_on_error) {
-                        return new Object() as AdminAuthResponse;
+                    if (this.return_null_on_error) {
+                        return null;
                     }
                     throw err;
                 },
@@ -1592,9 +1670,10 @@ export class Pbd {
      * Refreshes an admin token.
      *
      * @throws {ClientResponseError} - If the request to pocketbase fails
-     * @returns {Promise<AdminAuthResponse>} - The result of the adminAuthRefresh
+     * @returns {Promise<AdminAuthResponse | null>} - The result of the adminAuthRefresh
+     * or null if return_null_on_error is set to true
      */
-    async adminAuthRefresh(): Promise<AdminAuthResponse> {
+    async adminAuthRefresh(): Promise<AdminAuthResponse | null> {
         if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
             throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
@@ -1607,8 +1686,8 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
-                    return new Object() as AdminAuthResponse;
+                if (this.return_null_on_error) {
+                    return null;
                 }
                 throw err;
             },
@@ -1632,7 +1711,7 @@ export class Pbd {
                 },
             ).catch(
                 (err: ClientResponseError) => {
-                    if (this.return_empty_on_error) {
+                    if (this.return_null_on_error) {
                         return false;
                     }
                     throw err;
@@ -1645,9 +1724,7 @@ export class Pbd {
      * is invalid, an error will be thrown.
      *
      * @throws {ClientResponseError} - If the request to pocketbase fails
-     * @param token {string} - The token of the admin account to reset
-     * @param password {string} - The new password for the admin account
-     * @param password_confirm {string} - The new password for the admin account
+     * @param options {PbdAdminConfirmPasswordResetOptions} - The options for the confirmPasswordReset
      * @returns {Promise<boolean>} - The result of the confirmPasswordReset
      */
     async adminConfirmPasswordReset(
@@ -1656,14 +1733,14 @@ export class Pbd {
         return await this.client.admins.confirmPasswordReset(
             options.token,
             options.password,
-            options.password_confirm,
+            options.passwordConfirm,
         ).then(
             (res: boolean) => {
                 return res;
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
+                if (this.return_null_on_error) {
                     return false;
                 }
                 throw err;
@@ -1676,11 +1753,12 @@ export class Pbd {
      *
      * @throws {ClientResponseError} - If the request to pocketbase fails
      * @param options {PbdAdminGetListOptions} - The options for the adminGetList
-     * @returns {Promise<ListResult<AdminModel>>} - The result of the adminGetList
+     * @returns {Promise<ListResult<AdminModel> | null>} - The result of the adminGetList
+     * or null if return_null_on_error is set to true
      */
     async adminGetList(
         options: PbdAdminGetListOptions,
-    ): Promise<ListResult<AdminModel>> {
+    ): Promise<ListResult<AdminModel> | null> {
         if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
             throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
@@ -1696,8 +1774,8 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
-                    return new Object() as ListResult<AdminModel>;
+                if (this.return_null_on_error) {
+                    return null;
                 }
                 throw err;
             },
@@ -1708,12 +1786,13 @@ export class Pbd {
      * Get the full list of admins. The list can be filtered and sorted.
      *
      * @throws {ClientResponseError} - If the request to pocketbase fails
-     * @param options {PbdAdminGetListOptions} - The options for the adminGetFullList
-     * @returns {Promise<AdminModel[]>} - The result of the adminGetFullList
+     * @param options {PbdAdminGetFullListOptions} - The options for the adminGetFullList
+     * @returns {Promise<AdminModel[] | null>} - The result of the adminGetFullList
+     * or null if return_null_on_error is set to true
      */
     async adminGetFullList(
-        options: PbdAdminGetListOptions,
-    ): Promise<AdminModel[]> {
+        options: PbdAdminGetFullListOptions,
+    ): Promise<AdminModel[] | null> {
         if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
             throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
@@ -1730,8 +1809,8 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
-                    return new Object() as AdminModel[];
+                if (this.return_null_on_error) {
+                    return null;
                 }
                 throw err;
             },
@@ -1743,11 +1822,11 @@ export class Pbd {
      *
      * @throws {ClientResponseError} - If the request to pocketbase fails
      * @param options {PbdAdminGetListOptions} - The options for the adminGetFirstListItem
-     * @returns {Promise<AdminModel>} - The result of the adminGetFirstListItem
+     * @returns {Promise<AdminModel | null>} - The result of the adminGetFirstListItem
      */
     async adminGetFirstListItem(
         options: PbdAdminGetListOptions,
-    ): Promise<AdminModel> {
+    ): Promise<AdminModel | null> {
         if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
             throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
@@ -1762,8 +1841,8 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
-                    return new Object() as AdminModel;
+                if (this.return_null_on_error) {
+                    return null;
                 }
                 throw err;
             },
@@ -1775,9 +1854,10 @@ export class Pbd {
      *
      * @throws {ClientResponseError} - If the request to pocketbase fails
      * @param options {PbdAdminViewOptions} - The options for the adminView
-     * @returns {Promise<AdminModel>} - The result of the adminView
+     * @returns {Promise<AdminModel | null>} - The result of the adminView
+     * or null if return_null_on_error is set to true
      */
-    async adminView(options: PbdAdminViewOptions): Promise<AdminModel> {
+    async adminView(options: PbdAdminViewOptions): Promise<AdminModel | null> {
         if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
             throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
@@ -1790,8 +1870,8 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
-                    return new Object() as AdminModel;
+                if (this.return_null_on_error) {
+                    return null;
                 }
                 throw err;
             },
@@ -1803,9 +1883,12 @@ export class Pbd {
      *
      * @throws {ClientResponseError} - If the request to pocketbase fails
      * @param options {PbdAdminCreateOptions} - The options for the adminCreate
-     * @returns {Promise<AdminModel>} - The result of the adminCreate
+     * @returns {Promise<AdminModel | null>} - The result of the adminCreate
+     * or null if return_null_on_error is set to true
      */
-    async adminCreate(options: PbdAdminCreateOptions): Promise<AdminModel> {
+    async adminCreate(
+        options: PbdAdminCreateOptions,
+    ): Promise<AdminModel | null> {
         if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
             throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
@@ -1823,8 +1906,8 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
-                    return new Object() as AdminModel;
+                if (this.return_null_on_error) {
+                    return null;
                 }
                 throw err;
             },
@@ -1836,9 +1919,12 @@ export class Pbd {
      *
      * @throws {ClientResponseError} - If the request to pocketbase fails
      * @param options {PbdAdminUpdateOptions} - The options for the adminUpdate
-     * @returns {Promise<AdminModel>} - The result of the adminUpdate
+     * @returns {Promise<AdminModel | null>} - The result of the adminUpdate
+     * or null if return_null_on_error is set to true
      */
-    async adminUpdate(options: PbdAdminUpdateOptions): Promise<AdminModel> {
+    async adminUpdate(
+        options: PbdAdminUpdateOptions,
+    ): Promise<AdminModel | null> {
         if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
             throw new Error(
                 `Attempted to make an administrator operation. The current client 'isAdmin' state is ${this.client.authStore.isAdmin}.`,
@@ -1856,8 +1942,8 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
-                    return new Object() as AdminModel;
+                if (this.return_null_on_error) {
+                    return null;
                 }
                 throw err;
             },
@@ -1884,7 +1970,7 @@ export class Pbd {
             },
         ).catch(
             (err: ClientResponseError) => {
-                if (this.return_empty_on_error) {
+                if (this.return_null_on_error) {
                     return false;
                 }
                 throw err;

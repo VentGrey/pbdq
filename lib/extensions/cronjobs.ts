@@ -34,9 +34,9 @@ export const setupCronjobBackup: (
 ) => void = (Pbd: Pbd, options: PbdCronExtOptions) => {
     Deno.cron(
         `Pocketbase Backup (${crypto.randomUUID()})`,
-        options.cron_expression,
+        options.cronExpression,
         async () => {
-            if (options.backup_name.toLowerCase() === "auto") {
+            if (options.backupName.toLowerCase() === "auto") {
                 await Pbd.createBackup(
                     `auto-${new Date().getFullYear()}-${new Date().getMonth}-${
                         new Date().getDate().toString()
@@ -45,7 +45,7 @@ export const setupCronjobBackup: (
                     }-${new Date().getSeconds().toString()}.zip`,
                 );
             } else {
-                await Pbd.createBackup(`${options.backup_name}.zip`);
+                await Pbd.createBackup(`${options.backupName}.zip`);
             }
         },
     );

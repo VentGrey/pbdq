@@ -1,4 +1,4 @@
-import Client, { CommonOptions } from "pocketbase";
+import Client, { CollectionModel, CommonOptions } from "pocketbase";
 import Pbd from "$pbdq";
 
 /**
@@ -49,7 +49,7 @@ export interface PbdQueryOptions {
 
     /**
      * Pocketbase client common options to send in almost all requests in
-     * the SDK. See {@link Client}
+     * the SDK. See {@linkcode Client}
      * @type {import("pocketbase").CommonOptions}
      */
     options?: CommonOptions;
@@ -124,7 +124,7 @@ export interface PbdConfirmPasswordResetOptions extends PbdQueryOptions {
      * The password confirmation.
      * @type {string}
      */
-    password_confirm: string;
+    passwordConfirm: string;
 }
 
 /**
@@ -176,7 +176,7 @@ export interface PbdAuthPasswordOptions extends PbdQueryOptions {
      * The username or email address to authenticate with.
      * @type {string}
      */
-    user_or_email: string;
+    userOrEmail: string;
 
     /**
      * The user password required to authenticat
@@ -210,7 +210,7 @@ export interface PbdDownloadBackupOptions {
      * zip or other formats, you'll have to provide the extension
      * as well.
      */
-    backup_name: string;
+    backupName: string;
 
     /**
      * A generated token to access the backup.
@@ -219,6 +219,9 @@ export interface PbdDownloadBackupOptions {
     token: string;
 }
 
+/**
+ * The options for the {@linkcode Pbd.getLogs} wrapped method.
+ */
 export interface PbdGetLogsOptions extends PbdQueryOptions {
     /**
      * The page number.
@@ -234,8 +237,128 @@ export interface PbdGetLogsOptions extends PbdQueryOptions {
 }
 
 /**
+ * The options for the testS3 wrapped method.
+ * @see {@linkcode Pbd.testS3}
+ */
+export interface PbdTestS3Options {
+    /**
+     * The type of backups to test.
+     *
+     * @type {"storage" | "backups"}
+     */
+    backups: "storage" | "backups";
+}
+
+/**
+ * The options for the {@linkcode Pbd.testEmail} wrapped method.
+ */
+export interface PbdTestEmailOptions {
+    /**
+     * The email address to test. If the email is not valid, the
+     * PocketBase server will throw an error.
+     *
+     * @type {string}
+     */
+    email: string;
+
+    /**
+     * The email html template to use in the sent email.
+     *
+     * @type {string}
+     */
+    template: string;
+}
+
+/**
+ * The options for the {@linkcode Pbd.generateAppleClientSecret} wrapped method.
+ */
+export interface PbdGenerateAppleClientSecretOptions {
+    /**
+     * The Apple client id to generate the secret for.
+     *
+     * @type {string}
+     */
+    client_id: string;
+
+    /**
+     * The Apple team id to generate the secret for.
+     *
+     * @type {string}
+     */
+    team_id: string;
+
+    /**
+     * The Apple key id required to generate the secret.
+     *
+     * @type {string}
+     */
+    key_id: string;
+
+    /**
+     *  Your generated Apple private key
+     *
+     * @type {string}
+     */
+    private_key: string;
+
+    /**
+     * The duration of the apple client secret in seconds
+     *
+     * @type {number}
+     */
+    duration: number;
+}
+
+/**
+ * The options for the {@linkcode Pbd.importCollections} wrapped method.
+ */
+export interface PbdImportCollectionsOptions {
+    /**
+     * The collections to import into pocketbase
+     * This is an array of PocketBase {@linkcode CollectionModel}
+     *
+     * See the official SDK documentation for more information on how
+     * to build your collection objects to fit into the PocketBase model.
+     *
+     * @type {Array<CollectionModel>}
+     */
+    collections: Array<CollectionModel>;
+
+    /**
+     * Whether to delete missing collections.
+     *
+     * @type {boolean}
+     */
+    deleteMissing: boolean;
+}
+
+/**
+ * The options for the {@linkcode Pbd.getOneCollection} wrapped method.
+ */
+export interface PbdGetOneCollectionOptions {
+    /**
+     * The name or id of the collection to get
+     *
+     * @type {string}
+     */
+    nameOrId: string;
+}
+
+/**
+ * The options for the {@linkcode Pbd.deleteCollection} wrapped method.
+ */
+export interface PbdDeleteCollectionOptions {
+    /**
+     * The name or id of the collection to delete
+     *
+     * @type {string}
+     */
+    nameOrId: string;
+}
+
+/**
  * The options for the createCollection method.
- * @see {@link Pbd.createCollection}
+ * @see {@linkcode Pbd.createCollection}
  */
 export interface PbdCreateCollectionOptions extends PbdQueryOptions {
     /**
@@ -317,8 +440,7 @@ export interface PbdCreateCollectionOptions extends PbdQueryOptions {
 }
 
 /**
- * The options for the adminAuthWithPassword method.
- * @see {@link Pbd.adminAuthWithPassword}
+ * The options for the {@linkcode Pbd.adminAuthWithPassword} method.
  */
 export interface PbdAdminAuthWithPasswordOptions {
     /**
@@ -366,7 +488,18 @@ export interface PbdAdminConfirmPasswordResetOptions {
      * The password confirmation (Same as password).
      * @type {string}
      */
-    password_confirm: string;
+    passwordConfirm: string;
+}
+
+/**
+ * Options for the adminGetFullList method. The sort option is optional.
+ * @see {@link Pbd.adminGetFullList}
+ */
+export interface PbdAdminGetFullListOptions extends PbdQueryOptions {
+    /**
+     * Optional sorting for the full list.
+     */
+    sort?: string;
 }
 
 /**
@@ -496,7 +629,7 @@ export interface PbdCronExtOptions {
      * Deno handles the validation of the cron expression for us.
      * @type {string}
      */
-    cron_expression: string;
+    cronExpression: string;
 
     /**
      * The name of the backup to use when running the backup.
@@ -509,7 +642,7 @@ export interface PbdCronExtOptions {
      *
      * @type {string}
      */
-    backup_name: "auto" | string;
+    backupName: "auto" | string;
 }
 
 /**

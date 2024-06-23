@@ -54,7 +54,7 @@ Deno.test({
     fn: async () => {
         await pbd.authWithPassword({
             collectionName: "users",
-            user_or_email: pocketbase_user,
+            userOrEmail: pocketbase_user,
             password: pocketbase_password,
         });
 
@@ -81,10 +81,14 @@ Deno.test({
             "Breed": "Psycho Orange Cat",
         };
 
-        const result: Cat = await pbd.create<Cat>(
+        const result: Cat | null = await pbd.create<Cat>(
             { collectionName: "Cats" },
             newCat,
         );
+
+        if (!result) {
+            throw new Error("Failed to create new cat");
+        }
 
         assertEquals(
             result.Name,
@@ -99,15 +103,17 @@ Deno.test({
         const newCatID: string = result.id;
 
         // List all cats
-        const cats: Cat[] = await pbd.getFullList<Cat>({
+        const cats: Cat[] | null = await pbd.getFullList<Cat>({
             collectionName: "Cats",
         });
         assertEquals(Array.isArray(cats), true, "Cats should be an array");
 
         // Get a single cat
-        const cat: Cat = await pbd.getOne<Cat>(newCatID, {
+        const cat: Cat | null = await pbd.getOne<Cat>(newCatID, {
             collectionName: "Cats",
         });
+
+        if (!cat) throw new Error("Failed to get cat");
 
         assertEquals(
             cat.Name,
@@ -120,11 +126,14 @@ Deno.test({
         );
 
         // Update the cat name
-        const updatedCat: Cat = await pbd.update<Cat>(newCatID, {
+        const updatedCat: Cat | null = await pbd.update<Cat>(newCatID, {
             collectionName: "Cats",
         }, {
             "Name": "Erina Pendleton",
         });
+
+        if (!updatedCat) throw new Error("Failed to update cat");
+
         assertEquals(
             updatedCat.Name,
             "Erina Pendleton",
@@ -159,7 +168,7 @@ Deno.test({
 Deno.bench("Test authentication (PBDQ)", async () => {
     await pbd.authWithPassword({
         collectionName: "users",
-        user_or_email: pocketbase_user,
+        userOrEmail: pocketbase_user,
         password: pocketbase_password,
     });
 });
@@ -175,10 +184,12 @@ Deno.bench(
             "Breed": "Psycho Orange Cat",
         };
 
-        const result: Cat = await pbd.create<Cat>(
+        const result: Cat | null = await pbd.create<Cat>(
             { collectionName: "Cats" },
             newCat,
         );
+
+        if (!result) throw new Error("Failed to create new cat");
 
         const newCatID: string = result.id;
 
