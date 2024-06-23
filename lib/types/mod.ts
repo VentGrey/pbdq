@@ -509,6 +509,26 @@ export interface PbdAdminGetFullListOptions {
 }
 
 /**
+ * Options for the {@linkcode Pbd.listBackup} wrapped method.
+ * The fields option is optional.
+ */
+export interface PbdListBackupOptions {
+    /**
+     * Optional fields to return in the backup json response.
+     *
+     * @type {string}
+     */
+    fields?: string;
+
+    /**
+     * Pocketbase client common options to send in almost all requests in
+     * the SDK. See {@linkcode Client}
+     * @type {import("pocketbase").CommonOptions}
+     */
+    options?: CommonOptions;
+}
+
+/**
  * Options for the {@linkcode Pbd.adminGetList} wrapped method.
  *
  * The page and perPage options are

@@ -37,6 +37,7 @@ import {
     PbdGetLogsOptions,
     PbdGetOneCollectionOptions,
     PbdImportCollectionsOptions,
+    PbdListBackupOptions,
     PbdOauthAuthOptions,
     PbdOptions,
     PbdQueryOptions,
@@ -939,12 +940,12 @@ export class Pbd {
      * Wraps the listBackups method from the pocketbase client.
      *
      * @throws {ClientResponseError} - If the request to pocketbase fails
-     * @param options {PbdQueryOptions} - The options for the listBackups
+     * @param options {PbdListBackupOptions} - The options for the listBackups
      * @returns {Promise<BackupFileInfo[] | null>} - The result of the listBackups,
      * or null if return_null_on_error is set to true
      */
     async listBackups(
-        options: PbdQueryOptions,
+        options: PbdListBackupOptions,
     ): Promise<BackupFileInfo[] | null> {
         if (this.unauthorized_errors && !this.client.authStore.isAdmin) {
             throw new Error(
@@ -953,7 +954,8 @@ export class Pbd {
         }
 
         return await this.client.backups.getFullList({
-            ...options.options,
+            fields: options.fields,
+            options: options.options,
         }).then(
             (res: unknown | BackupFileInfo[]) => {
                 if (!Array.isArray(res)) {
