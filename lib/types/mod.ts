@@ -468,8 +468,7 @@ export interface PbdAdminPasswordResetOptions {
 }
 
 /**
- * The options for the adminConfirmPasswordReset method.
- * @see {@link Pbd.adminConfirmPasswordReset}
+ * The options for the {@linkcode Pbd.adminConfirmPasswordReset} wrapped method.
  */
 export interface PbdAdminConfirmPasswordResetOptions {
     /**
@@ -492,21 +491,28 @@ export interface PbdAdminConfirmPasswordResetOptions {
 }
 
 /**
- * Options for the adminGetFullList method. The sort option is optional.
- * @see {@link Pbd.adminGetFullList}
+ * Options for the {@linkcode Pbd.adminGetFullList} wrapped method.
+ * The sort option is optional.
  */
-export interface PbdAdminGetFullListOptions extends PbdQueryOptions {
+export interface PbdAdminGetFullListOptions {
     /**
      * Optional sorting for the full list.
      */
     sort?: string;
+
+    /**
+     * Pocketbase client common options to send in almost all requests in
+     * the SDK. See {@linkcode Client}
+     * @type {import("pocketbase").CommonOptions}
+     */
+    options?: CommonOptions;
 }
 
 /**
- * Options for the adminGetList method. The page and perPage options are
- * required.
+ * Options for the {@linkcode Pbd.adminGetList} wrapped method.
  *
- * @see {@link Pbd.adminGetList}
+ * The page and perPage options are
+ * required.
  */
 export interface PbdAdminGetListOptions extends PbdQueryOptions {
     /**
