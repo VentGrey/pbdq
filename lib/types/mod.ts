@@ -37,7 +37,7 @@ export interface PbdOptions {
 }
 
 /**
- * Basic options when interacting with pocketbase. PbdQueryOptions are
+ * Basic options when interacting with pocketbase. {@linkcode PbdQueryOptions} are
  * specific to the Pbd wrapper.
  */
 export interface PbdQueryOptions {
@@ -56,9 +56,19 @@ export interface PbdQueryOptions {
 
     /**
      * The filter to use when querying.
+     * (Optional)
+     *
      * @type {string}
      */
     filter?: string;
+
+    /**
+     * The sort to use when querying.
+     * (Optional)
+     *
+     * @type {string}
+     */
+    sort?: string;
 }
 
 /**

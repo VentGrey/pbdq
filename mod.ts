@@ -657,31 +657,32 @@ export class Pbd {
      * or null if return_null_on_error is set to true
      */
     async getFullList<T>(options: PbdQueryOptions): Promise<T[] | null> {
-        return await this.client.collection(options.collectionName).getFullList<
-            T
-        >({
-            ...options.options,
-        }).then(
-            (res: T[]) => {
-                if (res.length === 0) {
+        return await this.client
+            .collection(options.collectionName)
+            .getFullList<T>({
+                options: options.options,
+                sort: options.sort,
+            }).then(
+                (res: T[]) => {
+                    if (res.length === 0) {
+                        if (this.return_null_on_error) {
+                            return null;
+                        }
+                        throw new Error(
+                            `No items found in collection ${options.collectionName}`,
+                        );
+                    }
+
+                    return res;
+                },
+            ).catch(
+                (err: ClientResponseError) => {
                     if (this.return_null_on_error) {
                         return null;
                     }
-                    throw new Error(
-                        `No items found in collection ${options.collectionName}`,
-                    );
-                }
-
-                return res;
-            },
-        ).catch(
-            (err: ClientResponseError) => {
-                if (this.return_null_on_error) {
-                    return null;
-                }
-                throw err;
-            },
-        );
+                    throw err;
+                },
+            );
     }
 
     /**
@@ -695,10 +696,14 @@ export class Pbd {
      * or null if return_null_on_error is set to true
      */
     async getFirstListItem<T>(options: PbdQueryOptions): Promise<T | null> {
-        return await this.client.collection(options.collectionName)
-            .getFirstListItem<T>(options.filter?.toString() as string, {
-                ...options.options,
-            }).then(
+        return await this.client
+            .collection(options.collectionName)
+            .getFirstListItem<T>(
+                options.filter ? options.filter.toString() : "",
+                {
+                    options: options.options,
+                },
+            ).then(
                 (res: T) => {
                     return res;
                 },
