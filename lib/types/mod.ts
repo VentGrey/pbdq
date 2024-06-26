@@ -1,4 +1,8 @@
-import Client, { CollectionModel, CommonOptions } from "pocketbase";
+import Client, {
+    CollectionModel,
+    CommonOptions,
+    RecordListOptions,
+} from "pocketbase";
 import Pbd from "$pbdq";
 
 /**
@@ -209,6 +213,13 @@ export interface PbdGetListOptions extends PbdQueryOptions {
      * @type {number}
      */
     perPage: number;
+
+    /**
+     * Common options to send in almost all requests in the SDK. See {@linkcode Client}
+     *
+     * @type {import("pocketbase").RecordListOptions}
+     */
+    listoptions: RecordListOptions;
 }
 
 /**

@@ -621,7 +621,7 @@ export class Pbd {
         return await this.client.collection(options.collectionName).getList<T>(
             options.page,
             options.perPage,
-            options.options,
+            options.listoptions,
         ).then(
             (res: ListResult<T>) => {
                 if (res.totalItems === 0) {
